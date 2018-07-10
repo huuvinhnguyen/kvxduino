@@ -10,8 +10,11 @@
 
 SoftwareSerial mySerial(10, 11); // For Arduino 1.0
 
+boolean flag;
+
 void setup()
 {
+  flag = false;
   mySerial.begin(9600);               // the GPRS baud rate   
   Serial.begin(9600);                 // the GPRS baud rate   
   pinMode(13, OUTPUT);  
