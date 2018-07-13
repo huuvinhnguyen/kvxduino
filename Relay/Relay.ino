@@ -1,10 +1,10 @@
 
-int pinOut = 10;
+int pinOut = 13;
 
 void setup() {
 
   Serial.begin(9600);
-  pinMode(10, OUTPUT);
+  pinMode(13, OUTPUT);
 
 }
 
@@ -14,6 +14,5 @@ void loop() {
   delay(5000);
    digitalWrite(pinOut, LOW);
    delay(5000);
-
 
 }
