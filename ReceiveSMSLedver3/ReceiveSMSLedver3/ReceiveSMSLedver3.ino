@@ -64,8 +64,6 @@ void loop() {
     delay(10);
     char c = (char)SIM900.read();
 
-
-
     if(c == '\n') 
     {
       Serial.println("Goi lenh");
