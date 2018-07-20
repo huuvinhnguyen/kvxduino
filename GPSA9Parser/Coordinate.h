@@ -2,12 +2,12 @@
 
 typedef struct Coordinate { 
     float latitude = 0; 
-    float longitude =0;
+    float longitude = 0;
 } Coordinate;
 
 class GPS  {
   public:
-  Coordinate coordinateFromString( String str);
+  Coordinate coordinateFromString(String str);
   Coordinate *getCoordinates();
   
   private:

@@ -34,16 +34,16 @@ void loop()
 
     if (c == '\n') {
 
+      
+
+      //      Serial.println(str);
+
+//      mySerial.print("AT+CLIP=1 \r \n");
 
 
-//      Serial.println(str);
 
-      mySerial.print("AT+CLCC \r \n");
-
-
-      delay(100);
-//      readSerial();
-         Serial.write(mySerial.read());
+      readSerial();
+      //         Serial.write(mySerial.read());
       //
       str = "";
     } else {
@@ -55,9 +55,44 @@ void loop()
   }
 }
 
+  String number;
+
 void readSerial() {
-  while (mySerial.available())
-    Serial.write(mySerial.read());
+
+  while (mySerial.available()) {
+    //    Serial.write(mySerial.read());
+
+    char c = (char) mySerial.read();
+
+    if (c == '\n') {
+
+
+      if (number.indexOf("RING") != -1 ) {
+
+        Serial.println("Dang goi");
+        mySerial.print("ATH \r \n");
+        
+      }
+
+
+      Serial.println(number);
+
+      if (number.indexOf("+CLCC:") != -1) {
+//        Serial.println(number);
+      }
+
+      number = "";
+
+    } else {
+
+
+      number.concat(c);
+
+    }
+
+  }
+
+  delay(1000);
 
 
 }
