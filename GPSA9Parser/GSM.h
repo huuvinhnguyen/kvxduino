@@ -2,5 +2,6 @@
 
 class GSM {
   public:
-   bool isCallingFromSerial(SoftwareSerial *serial);  
+   bool isCallingFromSerial(SoftwareSerial *serial); 
+   void GSM::sendMessage(String str, SoftwareSerial *serial); 
 };

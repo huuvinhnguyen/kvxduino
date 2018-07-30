@@ -37,3 +37,15 @@ bool GSM::isCallingFromSerial(SoftwareSerial *serial) {
   delay(1000);
   return false;
 }
+
+void GSM::sendMessage(String str, SoftwareSerial *serial)
+{
+  serial->println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  serial->println("AT+CMGS=\"+84988249454\"\r"); // Replace x with mobile number
+  delay(1000);
+  serial->println(str);// The SMS text you want to send
+  delay(100);
+  serial->println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+}

@@ -15,9 +15,11 @@ boolean flag;
 void setup()
 {
   flag = false;
-  mySerial.begin(115200);               // the GPRS baud rate   
-  Serial.begin(115200);                 // the GPRS baud rate   
+  mySerial.begin(9600);               // the GPRS baud rate   
+  Serial.begin(9600);                 // the GPRS baud rate   
   pinMode(13, OUTPUT);  
+   digitalWrite(13, LOW);        // sets the digital pin 13 off
+
   mySerial.print("AT+ATA\r\n");
 
  
@@ -27,20 +29,20 @@ void setup()
 void loop()
 {
      
-    while(mySerial.available() > 0)
+    if(mySerial.available() > 0)
     {
 
 
       digitalWrite(13, HIGH);       // sets the digital pin 13 on
-      delay(10);                  // waits for a second
+      delay(5000);                  // waits for a second
       digitalWrite(13, LOW);        // sets the digital pin 13 off
-      delay(10);
+      delay(5000);
       
 //       Serial.println("MySerial1");
         char c = mySerial.read();
        Serial.print(c);
 
-       mySerial.println("ATH");
+//       mySerial.println("ATH");
 
 
      }   

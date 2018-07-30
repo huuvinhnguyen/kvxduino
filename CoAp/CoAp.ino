@@ -39,10 +39,10 @@ void callback_light(CoapPacket &packet, IPAddress ip, int port) {
       
   if (LEDSTATE) {
     digitalWrite(2, HIGH) ; 
-    coap.sendResponse(ip, port, packet.messageid, "1");
+//    coap.sendResponse(ip, port, packet.messageid, "1");
   } else { 
     digitalWrite(2, LOW) ; 
-    coap.sendResponse(ip, port, packet.messageid, "0");
+//    coap.sendResponse(ip, port, packet.messageid, "0");
   }
 }
 
@@ -95,8 +95,9 @@ void setup() {
 
 void loop() {
 
+    int msgid = coap.get(IPAddress(192, 168, 1, 96), 5683, "time");
 
-  
+
   delay(1000);
   coap.loop();
 }

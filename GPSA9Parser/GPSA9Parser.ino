@@ -95,8 +95,10 @@ void getCoordinates() {
     message += "\n";
 
     content += message;
+    GSM gsm;
+    gsm.sendMessage(content, A7board);
 
-    sendMessage(content);
+//    sendMessage(content);
 
   }
 
@@ -140,7 +142,7 @@ void setup() {
 //--------------------------------------------------------------------
 
 void loop() {
-  checkCalling();
+//  checkCalling();
   if (Serial.available()) {
     char c = (char)Serial.read();
     switch (c) {
@@ -186,17 +188,6 @@ void checkCalling() {
 
 }
 
-void sendMessage(String str)
-{
-  A7board->println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
-  delay(1000);  // Delay of 1000 milli seconds or 1 second
-  A7board->println("AT+CMGS=\"+84978483796\"\r"); // Replace x with mobile number
-  delay(1000);
-  A7board->println(str);// The SMS text you want to send
-  delay(100);
-  A7board->println((char)26);// ASCII code of CTRL+Z
-  delay(1000);
-}
 
 Coordinate* getCoordinates(int num) {
 
