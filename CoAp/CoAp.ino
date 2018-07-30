@@ -107,3 +107,7 @@ coap-client -m get coap://(arduino ip addr)/light
 coap-client -e "1" -m put coap://(arduino ip addr)/light
 coap-client -e "0" -m put coap://(arduino ip addr)/light
 */
+
+/*
+https://github.com/hirotakaster/CoAP-simple-library/blob/master/examples/coaptest/coaptest.ino
+*/
