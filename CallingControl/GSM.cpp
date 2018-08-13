@@ -17,6 +17,8 @@ bool GSM::isCallingFromSerial(SoftwareSerial *serial) {
 
         Serial.println(number);
         serial->print("ATH \r \n");
+         delay(1000);
+
         return true;
       }
 
@@ -31,6 +33,6 @@ bool GSM::isCallingFromSerial(SoftwareSerial *serial) {
 
   }
 
-  delay(100);
+  delay(1000);
   return false;
 }

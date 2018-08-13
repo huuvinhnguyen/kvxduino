@@ -19,7 +19,7 @@ void setup() {
   delay(200);
 
   //  A7board->println("AT+CLIP=1 \r \n");
-  delay(5000);
+//  delay(5000);
 
 
 }
@@ -28,11 +28,13 @@ void setup() {
 void loop() {
 
   checkCalling();
+      Serial.println("Test");
+
 }
 
 void checkCalling() {
   A7board->println("AT");
-  digitalWrite(legPin, HIGH);
+  digitalWrite(legPin, LOW);
 
   delay(3000);
 
@@ -42,9 +44,10 @@ void checkCalling() {
   bool isCalling = gsm.isCallingFromSerial(A7board);
 
   if (isCalling) {
+    delay(1000);
     Serial.println("Calling");
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 2; i++) {
       
       digitalWrite(legPin, HIGH);
       delay(50);
