@@ -36,6 +36,7 @@ void setup() {
  
 //cria uma rede de nome ESP_AP com senha 12345678
   wifiManager.autoConnect("ESP_AP", "12345678"); 
+
 }
 
 void loop() {
@@ -66,3 +67,4 @@ void saveConfigCallback () {
   Serial.println("Configuração salva");
   Serial.println(WiFi.softAPIP()); //imprime o IP do AP
 }
+
