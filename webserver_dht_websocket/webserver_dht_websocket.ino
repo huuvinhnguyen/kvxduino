@@ -6,13 +6,12 @@
 #include <WebSocketsServer.h>
 #include <Hash.h>
 #include <WiFiManager.h>
+#include <DHT.h>
 
 const byte interruptPin = 0;
 #define LED_R 2
 #define DBG_OUTPUT_PORT Serial
 
-const char* ssid = "Ving";
-const char* password = "123456789";
 const char* host = "khuonvienxanh";
 
 boolean device_one_state = false;
@@ -25,6 +24,8 @@ const int max_ws_client = 5;
 //holds the current upload
 File fsUploadFile;
 volatile int state = LOW;
+
+DHT dht(D2, DHT11);
 
 void setStatus(boolean st)
 {
@@ -247,10 +248,10 @@ void setup(void) {
 
 
   //WIFI INIT
-//  DBG_OUTPUT_PORT.printf("Connecting to %sn", ssid);
-//  if (String(WiFi.SSID()) != String(ssid)) {
-//    WiFi.begin(ssid, password);
-//  }
+  //  DBG_OUTPUT_PORT.printf("Connecting to %sn", ssid);
+  //  if (String(WiFi.SSID()) != String(ssid)) {
+  //    WiFi.begin(ssid, password);
+  //  }
 
   setupWiFi();
 
@@ -313,14 +314,37 @@ void setup(void) {
 }
 
 void loop(void) {
+  
   server.handleClient();
   webSocket.loop();
+
+//  float temp = dht.readTemperature(true); //F
+  float temp = dht.readTemperature(); //C
+
+  float hum = dht.readHumidity();
+  String jsonString = "{";
+  jsonString += "\"temperature\":";
+  jsonString += temp;
+  jsonString += ",";
+  jsonString += "\"humidity\":";
+  jsonString += hum;
+  jsonString += "}";
+  
+  static unsigned long last = 0;
+  if (abs(millis() - last) > 1000) {
+    String message = String(millis());
+
+    String tempString = String(temp);
+    //        webSocket.broadcastTXT(String(millis()));
+    webSocket.broadcastTXT(jsonString);
+    last = millis();
+  }
 }
 
 void setupWiFi() {
-    delay(10000);
+  delay(10000);
 
-    WiFiManager wifiManager;
-     wifiManager.setConfigPortalTimeout(60);
-    wifiManager.startConfigPortal();
+  WiFiManager wifiManager;
+  wifiManager.setConfigPortalTimeout(60);
+  wifiManager.startConfigPortal();
 }

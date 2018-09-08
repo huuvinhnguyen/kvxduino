@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<!---https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_switch -->
+<head>
+  <head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1",  charset="UTF-8">
+<style>
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 120px;
+  height: 68px;
+  
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+.switch input {display:none;}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 52px;
+  width: 52px;
+  left: 8px;
+  bottom: 8px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(52px);
+  -ms-transform: translateX(52px);
+  transform: translateX(52px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+div 
+{
+    border: 2px solid red;
+    
+    border-radius: 5px;
+    background-color: #f2f2f2;
+    padding: 20px;
+}
+
+
+</style>
+
+<script>
+var wsconnection;
+window.onbeforeunload = function() {
+  wsconnection.onclose = function () {}; // disable onclose handler first
+  wsconnection.close()
+};
+
+
+function switchPress(){
+  
+ 
+  if(document.getElementById("checkbox").checked == true){
+    wsconnection.send('1');//Send off
+    // console.log("OFF");
+    // document.getElementById("cube-switch").className = "cube-switch";
+  }else if(document.getElementById("checkbox").checked == false){
+    wsconnection.send('0');//Send off
+
+    // console.log("ON");
+    // document.getElementById("cube-switch").className = "cube-switch active";
+  }
+}
+function createWs()
+{
+  wsconnection = new WebSocket('ws://' + location.hostname + ':81/', ['arduino']);
+  wsconnection.onopen = function() {
+    document.getElementById("checkbox").checked = false;
+    document.getElementById("switch").style.display = "block";
+    //wsconnection.send('Connect ' + new Date());
+  };
+  wsconnection.onerror = function(error) {
+    console.log('WebSocket Error ', error);
+  };
+  wsconnection.onmessage = function(e) {
+    console.log('Server: ', e.data);
+    try {
+      var res = JSON.parse(e.data);
+      if(res.devices[0].state=="on"){
+        document.getElementById("checkbox").checked = true;
+        
+      }
+      else if(res.devices[0].state=="off"){
+        document.getElementById("checkbox").checked = false;
+        
+      }
+
+    }
+    catch(err) {
+      //  console.log("ERR:"+err.message);
+    }
+
+  };
+}
+</script>
+
+</head>
+<body  onload="createWs()">
+
+<div>
+
+<h2>Bật / Tắt  </h2>
+<!--
+<label class="switch">
+  <input type="checkbox">
+  <span class="slider"></span>
+</label>
+
+<label class="switch">
+  <input type="checkbox" checked>
+  <span class="slider"></span>
+</label><br><br>
+
+<label class="switch">
+  <input type="checkbox">
+  <span class="slider round"></span>
+</label>
+
+-->
+
+<label class="switch off" id = "switch"  onclick="switchPress()">
+  <input type="checkbox" id = "checkbox" unchecked>
+  <span class="slider round"></span>
+</label>
+
+</div>
+
+</body>
+</html> 
+
