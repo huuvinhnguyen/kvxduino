@@ -3,6 +3,9 @@
 #include <ESP8266WebServer.h>
 #include "DataDefault.h"
 #include "ViewInteractor.h"
+#include <WiFiManager.h>
+#include <ESP8266mDNS.h>
+
 
 ESP8266WebServer server(80);
 
@@ -85,7 +88,7 @@ void setup() {
   });
 
   server.begin();
-
+ 
 }
 
 
@@ -103,5 +106,16 @@ void setupWiFi() {
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
+
+//  delay(5000);
+//  WiFiManager wifiManager;
+//  wifiManager.setConfigPortalTimeout(60);
+//  wifiManager.startConfigPortal();
+//
+//  const char* host = "khuonvienxanh";
+//   MDNS.begin(host);
+//     // Add service to MDNS
+//  MDNS.addService("http", "tcp", 80);
+//  MDNS.addService("ws", "tcp", 81);
 }
 

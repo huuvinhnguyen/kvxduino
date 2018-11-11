@@ -36,10 +36,12 @@ class DataDefault {
       
       EEPROM.begin(512);
       EEPROM.put(0, t);
+      EEPROM.commit();
     }
 
     T loadObject() {
       
+      EEPROM.begin(512);
       T t;
       EEPROM.get( 0, t );
       return t;
