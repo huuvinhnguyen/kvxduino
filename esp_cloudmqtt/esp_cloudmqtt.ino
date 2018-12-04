@@ -3,20 +3,19 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>
+#include "ViewInteractor.h"
+#include "DataDefault.h"
+#include <ESP8266mDNS.h>
 
 ESP8266WebServer server(80);
 
-#define TouchSensor 4 // Pin for capactitive touch sensor
-boolean currentState = LOW;
-boolean lastState = LOW;
-boolean RelayState = LOW;
+struct Configuration {
 
-const char* ssid = "Ving";
-const char* password =  "1234567890";
-const char* mqttServer = "m15.cloudmqtt.com";
-const int mqttPort = 11692;
-const char* mqttUser = "quskfiwf";
-const char* mqttPassword = "HKfqtBl47aBR";
+  char mqttServer[30];
+  char mqttUser[30];
+  char mqttPassword[30];
+  int mqttPort = 14985;
+} configuration;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -26,136 +25,190 @@ void setup() {
 
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW);
-  pinMode(TouchSensor, INPUT);
+  digitalWrite(ledPin, HIGH);
+
   setupWiFi();
-//    WiFi.begin(ssid, password);
+
+  loadDataDefault();
+
+  connectMQTT();
+
+  configureServer();
+
+}
+
+void loop() {
+
+  if (!client.connected()) {
+    
+      connectMQTT();
+  } else {
+
+    client.loop();
+  }
   
-  
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.println("Connecting to WiFi..");
-    }
+  server.handleClient();
 
-  Serial.println("Connected to the WiFi network");
+}
 
-  client.setServer(mqttServer, mqttPort);
-  client.setCallback(callback);
+void callback(char* topic, byte* payload, unsigned int length) {
 
-  while (!client.connected()) {
-    Serial.println("Connecting to MQTT...");
+  payload[length] = '\0';
 
-    if (client.connect("ESP8266Client", mqttUser, mqttPassword )) {
+  Serial.print("Message arrived in topic: ");
+  Serial.println(topic);
 
-      Serial.println("connected");
+  Serial.print("Message:");
+  char *charArray = (char*)payload;
+  String str = (String)charArray;
 
-    } else {
+  Serial.print(str);
+  if (str.equals("1") ) {
+    digitalWrite(ledPin, LOW);
 
-      Serial.print("failed with state ");
-      Serial.print(client.state());
-      delay(2000);
+  } else {
 
-    }
+    digitalWrite(ledPin, HIGH);
   }
 
-  client.publish("esp/test", "Hello from ESP8266");
-  client.subscribe("esp/test", 1);
+  Serial.println();
+  Serial.println("-----------------------");
+  //  digitalWrite(ledPin, !digitalRead(ledPin));
+
+}
+
+void setupWiFi() {
+
+  const char* host = "thietbi";
+  MDNS.begin(host);
+  // Add service to MDNS
+  MDNS.addService("http", "tcp", 80);
+  MDNS.addService("ws", "tcp", 81);
+
+
+  delay(10000);
+  WiFiManager wifiManager;
+  wifiManager.setConfigPortalTimeout(30);
+  wifiManager.startConfigPortal();
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println("Connecting to WiFi..");
+  }
+
+
+  Serial.println("Connected to the WiFi network");
+}
+
+void loadDataDefault() {
+
+  DataDefault<Configuration> dataDefault;
+  delay(500);
+  configuration = dataDefault.loadObject();
+}
+
+void configureServer() {
+
+  ViewInteractor viewInteractor;
+  viewInteractor.lookupFiles();
+
+  server.onNotFound([]() {
+
+    ViewInteractor viewInteractor;
+    String path = server.uri();
+    if (!viewInteractor.isFileRead(path))
+
+      server.send(404, "text/plain", "FileNotFound");
+    else {
+
+      File file = viewInteractor.getFileRead(path);
+      size_t sent = server.streamFile(file, viewInteractor.getContentType(path));
+      file.close();
+    }
+  });
 
   server.on("/vieweeprom", []() {
 
-
     Serial.println( "Read custom object from EEPROM: " );
-
 
     String content = "<html>";
     content += "<body>";
-    content += "<h2>Your server:  <h1>" ;
-    //    content += configuration.server ;
-    content += "</h1>";
-    //    content += configuration.user;
-    content += "</h2>" ;
+
+    content += "<h1>User:  " ;
+    content += configuration.mqttUser ;
+    content += "</h1> <br>";
+
+    content += "<h1>Password:  " ;
+    content += configuration.mqttPassword ;
+    content += "</h1> <br>";
+
+    content += "<h1>Server:  " ;
+    content += configuration.mqttServer ;
+    content += "</h1> <br>";
+
+    content += "<h1>Port:  " ;
+    content += String(configuration.mqttPort) ;
+    content += "</h1> <br>";
     content += "</body>";
     content += "</html>";
 
     server.send(200, "text/html", content);
   });
 
-  server.on("/setupwifi", []() {
+  server.on("/setting", []() {
 
-    WiFi.begin(ssid, "123456789");
+    String serverString = server.arg("server");
+    Serial.println(serverString);
+    String username = server.arg("username");
+    Serial.println(username);
+    String password = server.arg("password");
+    String port = server.arg("port");
+    strcpy( configuration.mqttServer, serverString.c_str());
+    strcpy( configuration.mqttUser, username.c_str());
+    strcpy( configuration.mqttPassword, password.c_str());
+    configuration.mqttPort = port.toInt();
 
+    DataDefault<Configuration> dataDefault;
+    dataDefault.saveObject(configuration);
 
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.println("Connecting to WiFi..");
-    }
+    String content = "<html>";
+    content += "<body>";
+    content += "<h2>Your file Id:  <h1>" ;
+    //      content += fileId ;
+    content += "</h1>";
+    content += "has been saved.";
+    content += "</h2>" ;
+    content += "</body>";
+    content += "</html>";
+    server.send(200, "text/html", content);
 
-
-    server.send(200, "text/html", "Setup Wifi");
+    connectMQTT();
   });
 
   server.begin();
-
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+void connectMQTT() {
 
-  Serial.print("Message arrived in topic: ");
-  Serial.println(topic);
+  client.setServer(configuration.mqttServer, configuration.mqttPort);
+  client.setCallback(callback);
 
-  Serial.print("Message:");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
+  int atempNum = 0;
+  while (!client.connected() && (atempNum < 10)) {
 
-  Serial.println();
-  Serial.println("-----------------------");
-  digitalWrite(ledPin, !digitalRead(ledPin));
+    Serial.println("Connecting to MQTT...");
 
-}
+    if (client.connect("ESP8266Client", configuration.mqttUser, configuration.mqttPassword )) {
 
-void loop() {
-  client.loop();
-
-  currentState = digitalRead(TouchSensor);
-  if (currentState == HIGH && lastState == LOW) {
-    Serial.println("pressed");
-    delay(1);
-
-    if (RelayState == HIGH) {
-      digitalWrite(ledPin, LOW);
-      RelayState = LOW;
-      client.publish("esp/test", "Hello from LOW");
-
+      Serial.println("connected");
+      client.subscribe("switch", 1);
+      client.publish("FirstPing", "Hello ");
     } else {
-      digitalWrite(ledPin, HIGH);
-      client.publish("esp/test", "Hello from HIGH");
 
-      RelayState = HIGH;
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      delay(2000);
+      atempNum++;
     }
   }
-  lastState = currentState;
-
-  server.handleClient();
-}
-
-void setupWiFi() {
-
-//  const char* ssid = "khuonvienxanh";
-//
-//  WiFi.softAP(ssid, "123456789");
-//  IPAddress myIP = WiFi.softAPIP();
-//  Serial.print("AP IP address: ");
-//  Serial.println(myIP);
-
-    delay(10000);
-    WiFiManager wifiManager;
-    wifiManager.setConfigPortalTimeout(60);
-    wifiManager.startConfigPortal();
-  
-//    const char* host = "khuonvienxanh";
-//     MDNS.begin(host);
-//       // Add service to MDNS
-//    MDNS.addService("http", "tcp", 80);
-//    MDNS.addService("ws", "tcp", 81);
 }

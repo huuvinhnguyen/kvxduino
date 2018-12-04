@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <title>MQTT Configuration</title>
+  
+<!--  
+  <link rel='stylesheet prefetch' href='https://cdnjs.cloudflare.com/ajax/libs/ionicons/2.0.1/css/ionicons.css'>
+<link rel='stylesheet prefetch' href='https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css'>
+-->
+      <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="signupSection">
+  <form action="setting" method="GET" class="signupForm" name="signupform">
+    <h2>Configuration</h2>
+    <ul class="noBullet">
+      <li>
+        <label for="server"></label>
+        <input type="text" class="inputFields" id="username" name="server" placeholder="Server" value="" oninput="return userNameValidation(this.value)" required/>
+      </li>
+      <li>
+        <label for="username"></label>
+        <input type="username" class="inputFields" id="username" name="username" placeholder="User" value="" oninput="return userNameValidation(this.value)" required/>
+      </li>
+      <li>
+        <label for="password"></label>
+        <input type="username" class="inputFields" id="password" name="password" placeholder="Password" value="" required/>
+      </li>
+	  <li>
+        <label for="port"></label>
+        <input type="port" class="inputFields" id="port" name="port" placeholder="Port" value="" required/>
+      </li>
+      
+      <li id="center-btn">
+        <input type="submit" id="join-btn" name="save" alt="Save" value="Save">
+      </li>
+    </ul>
+  </form>
+</div>
+  
+  <!--  <script src="index.js"></script> -->
+
+</body>
+</html>
