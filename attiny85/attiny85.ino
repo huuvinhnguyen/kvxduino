@@ -5,7 +5,7 @@
 
 
 RCSwitch mySwitch = RCSwitch();
-int pirPin    = 3;
+int pirPin    = 1;
 int val = 0;
 
 // Variables for the Sleep/power down modes:
@@ -14,19 +14,19 @@ volatile boolean f_wdt = 1;
 void setup() {
 
   //  Serial.begin(9600);
-//     pinMode(pirPin, INPUT);
+  pinMode(pirPin, INPUT);
 
   mySwitch.enableTransmit(7);
 
   // Optional set protocol (default is 1, will work for most outlets)
-//  mySwitch.setProtocol(2);
+  //  mySwitch.setProtocol(2);
 
   // Optional set pulse length.
   // mySwitch.setPulseLength(320);
 
   // Optional set number of transmission repetitions.
   // mySwitch.setRepeatTransmit(15);
-//  setup_watchdog(8); // approximately 0.5 seconds sleep
+  setup_watchdog(8); // approximately 0.5 seconds sleep
 
 }
 
@@ -36,59 +36,21 @@ void loop() {
 
 
 
-  //  if (f_wdt == 1) { // wait for timed out watchdog / flag is set when a watchdog timeout occurs
-  //    f_wdt = 0;     // reset flag
-  //
-//      val = digitalRead(pirPin);
-//      if (val != 1) {
-//        val = 25;
-//      } else {}
-//  //    mySwitch.send("1010.00110011001100110011");
-  //    mySwitch.send(val, 24);
-  ////    delay(20);
-  //    delay(1000);
-  //
-  //    system_sleep();  // Send the unit to sleep
-  //
-  //  }
+  if (f_wdt == 1) { // wait for timed out watchdog / flag is set when a watchdog timeout occurs
+    f_wdt = 0;     // reset flag
 
-       val = digitalRead(pirPin);
-//       delay(100);
-      if (val != 1) {
-        val = 25;
-      } else {}
+    val = digitalRead(pirPin);
+    if (val != 1) {
+      val = 25;
+    } else {
+      
+      mySwitch.send(val, 24);
+    }
+    
 
-//      mySwitch.send("1010.00110011001100110011");
-    mySwitch.send(val, 24);
-//    delay(20);
-    delay(1000);
+    system_sleep();  // Send the unit to sleep
 
-//    system_sleep();  // Send the unit to sleep
-
-  /////* See Example: TypeA_WithDIPSwitches */
-  //  mySwitch.switchOn("11111", "00010");
-  //  delay(1000);
-  //  mySwitch.switchOff("11111", "00010");
-  //  delay(1000);
-  //
-  //  /* Same switch as above, but using decimal code */
-  //  mySwitch.send(5393, 24);
-  //  delay(1000);
-  //  mySwitch.send(5396, 24);
-  //  delay(1000);
-  //
-  //  /* Same switch as above, but using binary code */
-  //  mySwitch.send("000000000001010100010001");
-  //  delay(1000);
-  //  mySwitch.send("000000000001010100010100");
-  //  delay(1000);
-  //
-  /* Same switch as above, but tri-state code */
-  //  mySwitch.sendTriState("00000FFF0F0F");
-  //  delay(1000);
-  //  mySwitch.sendTriState("00000FFF0FF0");
-  //  delay(1000);
-
+  }
 }
 
 // Routines to set and claer bits (used in the sleep code)
