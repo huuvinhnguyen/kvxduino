@@ -2,11 +2,15 @@
 #include <PubSubClient.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <WiFiManager.h>
 #include "ViewInteractor.h"
 #include "DataDefault.h"
 #include <ESP8266mDNS.h>
+#include <RCSwitch.h>
 
 ESP8266WebServer server(80);
+RCSwitch mySwitch = RCSwitch();
+
 
 struct Configuration {
 
@@ -14,15 +18,10 @@ struct Configuration {
   char mqttUser[30];
   char mqttPassword[30];
   int mqttPort = 14985;
-  char wifiSSID[30];
-  char wifiPassword[30];
-
 } configuration;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-
-
 uint8_t ledPin = 2;
 
 void setup() {
@@ -31,32 +30,46 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, HIGH);
 
+  mySwitch.enableReceive(D2);
+
+
+  setupWiFi();
+
   loadDataDefault();
 
+  connectMQTT();
 
   configureServer();
 
-  setupWiFi();
 }
-
 
 void loop() {
 
-  if (WiFi.status() == WL_CONNECTED) {
+  client.loop();
+  server.handleClient();
 
-    if (client.connected()) {
+   if (mySwitch.available()) {
+    //    output(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(), mySwitch.getReceivedProtocol());
+    //    mySwitch.resetAvailable();
+    const char* rawBinany = dec2binWzerofill(mySwitch.getReceivedValue(), 30);
+    
+    char valueBinary[16];
+    for (int i = 0 ; i < 15 ; i++) valueBinary[i] = rawBinany[i];
+    valueBinary[15] = '\0';
+    Serial.println(valueBinary);
+    ///
+    char idBinary[16];
+    for (int i = 0 ; i < 15 ; i++) idBinary[i] = rawBinany[i+15];
+    idBinary[15] = '\0';
+    Serial.println(idBinary);
+    Serial.println(rawBinany);
 
-      client.loop();
-    } else {
+    client.publish(idBinary, rawBinany);
 
-      loopConnectMQTT();
-    }
-  } else {
-
-    loopConnectWifi();
+    mySwitch.resetAvailable();
+    
   }
 
-  server.handleClient();
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -86,33 +99,33 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setupWiFi() {
-  delay(500);
+
   const char* host = "thietbi";
   MDNS.begin(host);
   // Add service to MDNS
   MDNS.addService("http", "tcp", 80);
   MDNS.addService("ws", "tcp", 81);
-  delay(500);
 
-  const char* ssid = "khuonvienxanh";
-  WiFi.softAP(ssid);
-  IPAddress myIP = WiFi.softAPIP();
 
-  long now = millis();
-
-  while ((millis() - now) < 60000) {
-
-    server.handleClient();
-
+  delay(10000);
+  WiFiManager wifiManager;
+  wifiManager.setConfigPortalTimeout(30);
+  wifiManager.startConfigPortal();
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println("Connecting to WiFi..");
   }
+
+
+  Serial.println("Connected to the WiFi network");
 }
 
 void loadDataDefault() {
-
+  
   DataDefault<Configuration> dataDefault;
-  configuration = dataDefault.loadObject();
   delay(500);
-
+  configuration = dataDefault.loadObject();
 }
 
 void configureServer() {
@@ -157,21 +170,11 @@ void configureServer() {
     content += "<h1>Port:  " ;
     content += String(configuration.mqttPort) ;
     content += "</h1> <br>";
-
-    content += "<h1>SSID:  " ;
-    content += configuration.wifiSSID ;
-    content += "</h1> <br>";
-
-    content += "<h1>Password:  " ;
-    content += configuration.wifiPassword ;
-    content += "</h1> <br>";
-
     content += "</body>";
     content += "</html>";
 
     server.send(200, "text/html", content);
   });
-
 
   server.on("/setting", []() {
 
@@ -185,8 +188,6 @@ void configureServer() {
     strcpy( configuration.mqttUser, username.c_str());
     strcpy( configuration.mqttPassword, password.c_str());
     configuration.mqttPort = port.toInt();
-
-
 
     DataDefault<Configuration> dataDefault;
     dataDefault.saveObject(configuration);
@@ -202,115 +203,54 @@ void configureServer() {
     content += "</html>";
     server.send(200, "text/html", content);
 
-  });
-
-  server.on("/wifisetting", []() {
-
-    String ssid = server.arg("ssid");
-    String wifiPass = server.arg("wifiPassword");
-
-    strcpy( configuration.wifiSSID, ssid.c_str());
-    strcpy( configuration.wifiPassword, wifiPass.c_str());
-
-
-    DataDefault<Configuration> dataDefault;
-    dataDefault.saveObject(configuration);
-
-    String content = "<html>";
-    content += "<body>";
-    content += "<h2>Your Wifi:  <h1>" ;
-    //      content += fileId ;
-    content += "</h1>";
-    content += "has been saved.";
-    content += "</h2>" ;
-    content += "</body>";
-    content += "</html>";
-    server.send(200, "text/html", content);
-    
-    connectWifi();
-
-  });
-
-  server.on("/", handleRoot);
-  server.begin();
-}
-
-void handleRoot() {
-  // Just serve the index page from SPIFFS when asked for
-  File index = SPIFFS.open("/wifi.htm", "r");
-  server.streamFile(index, "text/html");
-  index.close();
-}
-
-long lastReconnectWifiAttempt = 0;
-void loopConnectWifi() {
-
-  long now = millis();
-  if (now - lastReconnectWifiAttempt > 5000) {
-    lastReconnectWifiAttempt = now;
-    connectWifi();
-    if (WiFi.status() == WL_CONNECTED) {
-      lastReconnectWifiAttempt = 0;
-    }
-
-  }
-}
-
-void connectWifi() {
-  
-  delay(500);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(configuration.wifiSSID, configuration.wifiPassword);
-  Serial.print("SSID: ");
-  Serial.println(configuration.wifiSSID);
-  Serial.print("Password: ");
-
-  Serial.println(configuration.wifiPassword);
-
-  Serial.print("wifi connecting...");
-}
-
-long lastReconnectMQTTAttempt = 0;
-
-void loopConnectMQTT() {
-
-  long now = millis();
-  if (now - lastReconnectMQTTAttempt > 5000) {
-
-    lastReconnectMQTTAttempt = now;
-    // Attempt to connect
     connectMQTT();
+  });
 
-    if (client.connected()) {
-      lastReconnectMQTTAttempt = 0;
-    }
-  }
+  server.begin();
 }
 
 void connectMQTT() {
 
-  delay(500);
   client.setServer(configuration.mqttServer, configuration.mqttPort);
   client.setCallback(callback);
 
-  Serial.println(configuration.mqttServer);
-  Serial.println(configuration.mqttPort);
-  Serial.println(configuration.mqttUser);
-  Serial.println(configuration.mqttPassword);
+  int atempNum = 0;
+  while (!client.connected() && (atempNum < 10)) {
+    
+    Serial.println("Connecting to MQTT...");
 
+    if (client.connect("ESP8266Client", configuration.mqttUser, configuration.mqttPassword )) {
 
+      Serial.println("connected");
+      client.subscribe("switch", 1);
+      client.publish("FirstPing", "Hello ");
+    } else {
 
-  Serial.println("Connecting to MQTT...");
-
-  if (client.connect("ESP8266Client", configuration.mqttUser, configuration.mqttPassword )) {
-
-    Serial.println("connected");
-    client.subscribe("switch", 1);
-    client.publish("FirstPing", "Hello ");
-  } else {
-
-    Serial.print("failed with state ");
-    Serial.print(client.state());
-
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      delay(2000);
+      atempNum++;
+    }
   }
+}
+
+char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
+  static char bin[64]; 
+  unsigned int i=0;
+
+  while (Dec > 0) {
+    bin[32+i++] = ((Dec & 1) > 0) ? '1' : '0';
+    Dec = Dec >> 1;
+  }
+
+  for (unsigned int j = 0; j< bitLength; j++) {
+    if (j >= bitLength - i) {
+      bin[j] = bin[ 31 + i - (j - (bitLength - i)) ];
+    } else {
+      bin[j] = '0';
+    }
+  }
+  bin[bitLength] = '\0';
+  
+  return bin;
 }

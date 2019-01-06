@@ -30,39 +30,48 @@ void setup() {
 
 }
 
+ static char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
+  static char bin[64]; 
+  unsigned int i=0;
+
+  while (Dec > 0) {
+    bin[32+i++] = ((Dec & 1) > 0) ? '1' : '0';
+    Dec = Dec >> 1;
+  }
+
+  for (unsigned int j = 0; j< bitLength; j++) {
+    if (j >= bitLength - i) {
+      bin[j] = bin[ 31 + i - (j - (bitLength - i)) ];
+    } else {
+      bin[j] = '0';
+    }
+  }
+  bin[bitLength] = '\0';
+  
+  return bin;
+}
+
 void loop() {
 
 
 
-//  if (f_wdt == 1) { // wait for timed out watchdog / flag is set when a watchdog timeout occurs
-//    f_wdt = 0;     // reset flag
-//
-//    val = digitalRead(pirPin);
-//    if (val != 1) {
-//      val = 25;
-//    } else {
-//      
-//      mySwitch.send(val, 24);
-//    }
-//    
-//
-//    system_sleep();  // Send the unit to sleep
-//
-//  }
-  int temp = 25;
-  int humidity = 30;
-  char id[16] = "000000000000001";
-  char v[16] =  "000000000000001";
-  char t[32];
-  sprintf(t,"%s%s",id, v);
+  if (f_wdt == 1) { // wait for timed out watchdog / flag is set when a watchdog timeout occurs
+    f_wdt = 0;     // reset flag
 
-  mySwitch.send(t);
-
-//  mySwitch.send("10000000000000000000000000000010");
-//  mySwitch.send("00101001100", "001010011001111101011011");
-//    mySwitch.send(1234, 32);
-
-  
+    val = digitalRead(pirPin);
+    if (val == 1) {
+      
+      char id[16] = "000000000000001";
+      id[15] = '\0';
+      char sending[32];
+      char v[16] =  "000000000000001";
+      id[15] = '\0';
+      sprintf(sending, "%s%s", v, id);
+      mySwitch.send(sending);
+    }
+    
+    system_sleep();  // Send the unit to sleep
+  }
 }
 
 // Routines to set and claer bits (used in the sleep code)
@@ -114,5 +123,3 @@ void setup_watchdog(int ii) {
 ISR(WDT_vect) {
   f_wdt = 1; // set global flag
 }
-
-

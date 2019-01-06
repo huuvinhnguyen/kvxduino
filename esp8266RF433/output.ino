@@ -1,5 +1,5 @@
 static const char* bin2tristate(const char* bin);
-static char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength);
+//static char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength);
 
 void output(unsigned long decimal, unsigned int length, unsigned int delay, unsigned int* raw, unsigned int protocol) {
 
@@ -48,7 +48,7 @@ static const char* bin2tristate(const char* bin) {
   return returnValue;
 }
 
-static char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
+char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
   static char bin[64]; 
   unsigned int i=0;
 
