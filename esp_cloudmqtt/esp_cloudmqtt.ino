@@ -94,8 +94,10 @@ void setupWiFi() {
   MDNS.addService("ws", "tcp", 81);
   delay(500);
 
-  const char* ssid = "khuonvienxanh";
-  WiFi.softAP(ssid);
+//  const char* ssid = "khuonvienxanh";
+  String ssid = "ESP" + String(ESP.getChipId());
+
+  WiFi.softAP(ssid.c_str());
   IPAddress myIP = WiFi.softAPIP();
 
   long now = millis();
@@ -186,8 +188,6 @@ void configureServer() {
     strcpy( configuration.mqttPassword, password.c_str());
     configuration.mqttPort = port.toInt();
 
-
-
     DataDefault<Configuration> dataDefault;
     dataDefault.saveObject(configuration);
 
@@ -230,7 +230,7 @@ void configureServer() {
     connectWifi();
 
   });
-
+  
   server.on("/", handleRoot);
   server.begin();
 }
@@ -298,8 +298,6 @@ void connectMQTT() {
   Serial.println(configuration.mqttUser);
   Serial.println(configuration.mqttPassword);
 
-
-
   Serial.println("Connecting to MQTT...");
 
   if (client.connect("ESP8266Client", configuration.mqttUser, configuration.mqttPassword )) {
@@ -311,6 +309,5 @@ void connectMQTT() {
 
     Serial.print("failed with state ");
     Serial.print(client.state());
-
   }
 }
