@@ -1,6 +1,7 @@
 
 #include <RCSwitch.h>
 #include <avr/sleep.h>
+#include <avr/power.h>
 #include <dht.h>
 
 
@@ -20,7 +21,8 @@ volatile boolean f_wdt = 1;
 void setup() {
 
   //  Serial.begin(9600);
-//  pinMode(dhtPin, INPUT);
+  //  pinMode(dhtPin, INPUT);
+
 
   mySwitch.enableTransmit(7);
 
@@ -32,20 +34,20 @@ void setup() {
 
   // Optional set number of transmission repetitions.
   // mySwitch.setRepeatTransmit(15);
-  setup_watchdog(8); // approximately 0.5 seconds sleep
+  setup_watchdog(9); // approximately 0.5 seconds sleep
 
 }
 
- static char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
-  static char bin[64]; 
-  unsigned int i=0;
+static char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
+  static char bin[64];
+  unsigned int i = 0;
 
   while (Dec > 0) {
-    bin[32+i++] = ((Dec & 1) > 0) ? '1' : '0';
+    bin[32 + i++] = ((Dec & 1) > 0) ? '1' : '0';
     Dec = Dec >> 1;
   }
 
-  for (unsigned int j = 0; j< bitLength; j++) {
+  for (unsigned int j = 0; j < bitLength; j++) {
     if (j >= bitLength - i) {
       bin[j] = bin[ 31 + i - (j - (bitLength - i)) ];
     } else {
@@ -53,7 +55,7 @@ void setup() {
     }
   }
   bin[bitLength] = '\0';
-  
+
   return bin;
 }
 
@@ -61,46 +63,34 @@ void loop() {
 
 
 
-//  if (f_wdt == 1) { // wait for timed out watchdog / flag is set when a watchdog timeout occurs
-//    f_wdt = 0;     // reset flag
-//
-//    val = digitalRead(pirPin);
-//    if (val != 1) {
-//      val = 25;
-//    } else {
-//      
-//      mySwitch.send(val, 24);
-//    }
-//    
-//
-//    system_sleep();  // Send the unit to sleep
-//
-//  }
- 
+  if (f_wdt == 1) { // wait for timed out watchdog / flag is set when a watchdog timeout occurs
+    f_wdt = 0;     // reset flag
 
-   int chk = DHT11.read11(DHT11PIN);
- float hu = DHT11.humidity * 100;
- float te = DHT11.temperature * 100;
+    int chk = DHT11.read11(DHT11PIN);
+    float hu = DHT11.humidity * 100;
+    float te = DHT11.temperature * 100;
 
-  char *strTemp = dec2binWzerofill(te, 16);
+    char *strTemp = dec2binWzerofill(te, 16);
 
-  char teId[16] = "100000000000001";
-  teId[15] = '\0';
-  char sendingTe[32];
-  sprintf(sendingTe,"%s%s",strTemp, teId);
-  mySwitch.send(sendingTe);
+    char teId[16] = "100000000000001";
+    teId[15] = '\0';
+    char sendingTe[32];
+    sprintf(sendingTe, "%s%s", strTemp, teId);
+    mySwitch.send(sendingTe);
 
 
-  char *strHu = dec2binWzerofill(hu, 16);
-  char huId[16] = "110000000000001";
-  huId[15] = '\0';
-  char sendingHu[32];
-  sprintf(sendingHu,"%s%s",strHu, huId);
-  mySwitch.send(sendingHu);
+    char *strHu = dec2binWzerofill(hu, 16);
+    char huId[16] = "110000000000001";
+    huId[15] = '\0';
+    char sendingHu[32];
+    sprintf(sendingHu, "%s%s", strHu, huId);
+    mySwitch.send(sendingHu);
 
-//  mySwitch.send("10000000000000000000000000000010");
-//  mySwitch.send("00101001100", "001010011001111101011011");
-//    mySwitch.send(1234, 32);
+
+    system_sleep();  // Send the unit to sleep
+
+  }
+
 }
 
 // Routines to set and claer bits (used in the sleep code)
