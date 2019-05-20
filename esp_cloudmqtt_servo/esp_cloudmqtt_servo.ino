@@ -153,13 +153,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
   String str = (String)charArray;
 
   Serial.print(str);
-  if (str.equals("1") ) {
+  if (str.equals("1")) {
     digitalWrite(ledPin, LOW);
     activateServo();
+    client.publish(topic, "done");
 
-  } else {
+  } else if (str.equals("0"))  {
 
     digitalWrite(ledPin, HIGH);
+  } else if (str.equals("done")) {
+    client.publish(topic, "0", true);
+
   }
 
   Serial.println();
@@ -172,15 +176,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
 #include <Servo.h>
 
 Servo myservo;
-#define CONTROL_PIN D5
-int ser_pos_feeder = 80; 
-int ser_pos_fishtank = 25;
+#define CONTROL_PIN D7
+int ser_pos_feeder = 80;
+int ser_pos_fishtank = 50;
 int pos = 0;    // variable to store the servo position
 
 
 void activateServo() {
 
-   myservo.attach(CONTROL_PIN);  // attaches the servo on pin 9 to the servo object
+  myservo.attach(CONTROL_PIN);  // attaches the servo on pin 9 to the servo object
   myservo.write(ser_pos_feeder);
   for (pos = ser_pos_feeder; pos >= ser_pos_fishtank ; pos -= 1) {
     myservo.write(pos);              // tell servo to go to position in variable 'pos'
@@ -188,15 +192,15 @@ void activateServo() {
   }
   delay(500);
 
-   for (pos = ser_pos_fishtank; pos <= ser_pos_feeder; pos += 1) {
+  for (pos = ser_pos_fishtank; pos <= ser_pos_feeder; pos += 1) {
     // in steps of 1 degree
     myservo.write(pos);               // tell servo to go to position in variable 'pos'
 
   }
-   delay(500);
-   
-   myservo.detach();
-  
+  delay(500);
+
+  myservo.detach();
+
 }
 
 void setupWiFi() {
@@ -399,7 +403,7 @@ long lastReconnectMQTTAttempt = 0;
 void loopConnectMQTT() {
 
   long now = millis();
-  if (now - lastReconnectMQTTAttempt > 5000) {
+  if (now - lastReconnectMQTTAttempt > 60000) {
 
     lastReconnectMQTTAttempt = now;
     // Attempt to connect
