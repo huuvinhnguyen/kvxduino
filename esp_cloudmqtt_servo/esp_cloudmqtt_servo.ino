@@ -25,12 +25,14 @@ struct Configuration {
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-
 uint8_t ledPin = 2;
+
 
 void setup() {
 
   Serial.begin(115200);
+  setupTimeClient();
+
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, HIGH);
 
@@ -38,10 +40,7 @@ void setup() {
 
   rcSwitch.enableTransmit(D1);
 
-
-
   loadDataDefault();
-
 
   configureServer();
 
@@ -50,6 +49,7 @@ void setup() {
 
 
 void loop() {
+
 
   if (WiFi.status() == WL_CONNECTED) {
 
@@ -68,68 +68,70 @@ void loop() {
   loopRF();
   server.handleClient();
 
+
   float te = 25 * 100;
 
-    char *strTemp = dec2binWzerofill(te, 16);
+  char *strTemp = dec2binWzerofill(te, 16);
 
 
-    char teId[16] = "100000000000011";
+  char teId[16] = "100000000000011";
 
-    teId[15] = '\0';
-    char sendingTe[32];
-    sprintf(sendingTe, "%s%s", strTemp, teId);
+  teId[15] = '\0';
+  char sendingTe[32];
+  sprintf(sendingTe, "%s%s", strTemp, teId);
 
-    rcSwitch.send(sendingTe);
+  rcSwitch.send(sendingTe);
 
+  updateTriggerServo();
 }
 
 void loopRF() {
 
   if (rcSwitch.available()) {
- 
+
     const char* rawBinany = dec2binWzerofill(rcSwitch.getReceivedValue(), 30);
-    
+
     char valueBinary[16];
     for (int i = 0 ; i < 15 ; i++) valueBinary[i] = rawBinany[i];
     valueBinary[15] = '\0';
     Serial.println(valueBinary);
     ///
     char idBinary[16];
-    for (int i = 0 ; i < 15 ; i++) idBinary[i] = rawBinany[i+15];
+    for (int i = 0 ; i < 15 ; i++) idBinary[i] = rawBinany[i + 15];
     idBinary[15] = '\0';
     Serial.println(idBinary);
     Serial.println(rawBinany);
-    
+
     long valueLong = strtol(valueBinary, NULL, 2);
     float valueFloat = valueLong / 100.00;
     char mystr[6];
 
     dtostrf(valueFloat, 4, 2, mystr);
-    
-//    sprintf(mystr,"%s",);
-    
+
+    //    sprintf(mystr,"%s",);
+
 
     long idLong = strtol(idBinary, NULL, 2);
     char idStr[10];
-    sprintf(idStr,"%lu",idLong);
-    
+    sprintf(idStr, "%lu", idLong);
+
     client.publish(idStr, mystr);
 
     rcSwitch.resetAvailable();
-    
+
   }
 }
 
 char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
-  static char bin[64]; 
-  unsigned int i=0;
+  static char bin[64];
+  unsigned int i = 0;
 
   while (Dec > 0) {
-    bin[32+i++] = ((Dec & 1) > 0) ? '1' : '0';
+    bin[32 + i++] = ((Dec & 1) > 0) ? '1' : '0';
     Dec = Dec >> 1;
   }
 
-  for (unsigned int j = 0; j< bitLength; j++) {
+  for (unsigned int j = 0; j < bitLength; j++) {
     if (j >= bitLength - i) {
       bin[j] = bin[ 31 + i - (j - (bitLength - i)) ];
     } else {
@@ -137,9 +139,24 @@ char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
     }
   }
   bin[bitLength] = '\0';
-  
+
   return bin;
 }
+
+#include <Servo.h>
+
+Servo myservo;
+#define CONTROL_PIN D7
+int ser_pos_feeder = 70;
+int ser_pos_fishtank = 50;
+int pos = 0;    // variable to store the servo position
+
+#include <NTPClient.h>
+#include "Timer.h"
+WiFiUDP ntpUDP;
+const long utcOffsetInSeconds = 7 * 3600;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
+WatchDog watchDog;
 
 void callback(char* topic, byte* payload, unsigned int length) {
 
@@ -151,38 +168,74 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message:");
   char *charArray = (char*)payload;
   String str = (String)charArray;
-
   Serial.print(str);
-  if (str.equals("1")) {
-    digitalWrite(ledPin, LOW);
-    activateServo();
-    client.publish(topic, "done");
 
-  } else if (str.equals("0"))  {
+  if (strcmp(topic, "switch") == 0) {
 
-    digitalWrite(ledPin, HIGH);
-  } else if (str.equals("done")) {
-    client.publish(topic, "0", true);
+    if (str.equals("1")) {
+      digitalWrite(ledPin, LOW);
+      activateServo();
+      client.publish(topic, "0", true);
+      delay(100);
+      client.publish(topic, "done", false);
 
+    } else if (str.equals("0"))  {
+
+      digitalWrite(ledPin, HIGH);
+    } else if (str.equals("done")) {
+      //      client.publish(topic, "0", true);
+    }
   }
 
-  Serial.println();
+  if (strcmp(topic, "openvalue") == 0) {
+
+    if (str.equals("done")) {
+      Serial.println("#done");
+    } else {
+
+      ser_pos_fishtank = str.toInt();
+      Serial.print("set value open: ");
+      Serial.println(ser_pos_fishtank);
+      client.publish(topic, "done", false);
+    }
+  }
+
+  if (strcmp(topic, "timetrigger") == 0) {
+
+    if (str.equals("done")) {
+      Serial.println("#done");
+    } else {
+
+      watchDog.setTimeString(str);
+      Serial.print("trigger string: ");
+      Serial.println(str);
+      client.publish(topic, "done", false);
+    }
+  }
+
+  Serial.println("ok");
   Serial.println("-----------------------");
   //  digitalWrite(ledPin, !digitalRead(ledPin));
 
 }
 
+void setupTimeClient() {
+  timeClient.begin();
+}
 
-#include <Servo.h>
-
-Servo myservo;
-#define CONTROL_PIN D7
-int ser_pos_feeder = 80;
-int ser_pos_fishtank = 50;
-int pos = 0;    // variable to store the servo position
-
+void updateTriggerServo() {
+  timeClient.update();
+  bool isActive = watchDog.isAlarmAtTime(timeClient.getHours(), timeClient.getMinutes());
+  if (isActive) {
+    Serial.println("Activate servo");
+    activateServo();
+  }
+}
 
 void activateServo() {
+
+  Serial.print("openvalue = : ");
+  Serial.println(ser_pos_fishtank);
 
   myservo.attach(CONTROL_PIN);  // attaches the servo on pin 9 to the servo object
   myservo.write(ser_pos_feeder);
@@ -190,14 +243,14 @@ void activateServo() {
     myservo.write(pos);              // tell servo to go to position in variable 'pos'
 
   }
-  delay(500);
+  delay(1000);
 
   for (pos = ser_pos_fishtank; pos <= ser_pos_feeder; pos += 1) {
     // in steps of 1 degree
     myservo.write(pos);               // tell servo to go to position in variable 'pos'
 
   }
-  delay(500);
+  delay(1000);
 
   myservo.detach();
 
@@ -205,7 +258,7 @@ void activateServo() {
 
 void setupWiFi() {
   delay(500);
-  const char* host = "thietbi";
+  String host = "esp" + String(ESP.getChipId());;
   MDNS.begin(host);
   // Add service to MDNS
   MDNS.addService("http", "tcp", 80);
@@ -220,7 +273,7 @@ void setupWiFi() {
 
   long now = millis();
 
-  while ((millis() - now) < 60000) {
+  while ((millis() - now) < 30000) {
 
     server.handleClient();
 
@@ -344,15 +397,15 @@ void configureServer() {
     content += "</body>";
     content += "</html>";
     server.send(200, "text/html", content);
-    
+
     connectWifi();
 
   });
-  
+
   server.on("/", handleRoot);
 
   server.on("/mqtt", handleMQTTRoot);
-  
+
   server.begin();
 }
 
@@ -374,18 +427,17 @@ long lastReconnectWifiAttempt = 0;
 void loopConnectWifi() {
 
   long now = millis();
-  if (now - lastReconnectWifiAttempt > 5000) {
+  if (now - lastReconnectWifiAttempt > 15000) {
     lastReconnectWifiAttempt = now;
     connectWifi();
     if (WiFi.status() == WL_CONNECTED) {
       lastReconnectWifiAttempt = 0;
     }
-
   }
 }
 
 void connectWifi() {
-  
+
   delay(500);
   WiFi.mode(WIFI_STA);
   WiFi.begin(configuration.wifiSSID, configuration.wifiPassword);
@@ -418,6 +470,9 @@ void loopConnectMQTT() {
 void connectMQTT() {
 
   delay(500);
+  if (client.connected()) {
+    return;
+  }
   client.setServer(configuration.mqttServer, configuration.mqttPort);
   client.setCallback(callback);
 
@@ -431,7 +486,9 @@ void connectMQTT() {
   if (client.connect("ESP8266Client", configuration.mqttUser, configuration.mqttPassword )) {
 
     Serial.println("connected");
-    client.subscribe("switch", 1);
+    client.subscribe("switch", 0);
+    client.subscribe("openvalue", 1);
+    client.subscribe("timetrigger", 1);
     client.publish("FirstPing", "Hello ");
   } else {
 
