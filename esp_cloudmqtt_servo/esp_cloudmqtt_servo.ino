@@ -248,6 +248,7 @@ void activateServo() {
   for (pos = ser_pos_fishtank; pos <= ser_pos_feeder; pos += 1) {
     // in steps of 1 degree
     myservo.write(pos);               // tell servo to go to position in variable 'pos'
+    delay(10);
 
   }
   delay(1000);
