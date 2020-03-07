@@ -5,10 +5,8 @@
 #include "ViewInteractor.h"
 #include "DataDefault.h"
 #include <ESP8266mDNS.h>
-#include <RCSwitch.h>
 
 ESP8266WebServer server(80);
-RCSwitch rcSwitch = RCSwitch();
 uint8_t relayPin = 13;
 uint8_t relayPins[4] = {5, 4, 0, 2};
 
@@ -47,10 +45,6 @@ void setup() {
 
   }
 
-  rcSwitch.enableReceive(D2);
-
-  rcSwitch.enableTransmit(D1);
-
   loadDataDefault();
 
   configureServer();
@@ -78,62 +72,11 @@ void loop() {
     loopConnectWifi();
   }
 
-  loopRF();
   server.handleClient();
-
-
-  float te = 25 * 100;
-
-  char *strTemp = dec2binWzerofill(te, 16);
-
-
-  char teId[16] = "100000000000011";
-
-  teId[15] = '\0';
-  char sendingTe[32];
-  sprintf(sendingTe, "%s%s", strTemp, teId);
-
-  rcSwitch.send(sendingTe);
 
   updateTriggerServo();
 }
 
-void loopRF() {
-
-  if (rcSwitch.available()) {
-
-    const char* rawBinany = dec2binWzerofill(rcSwitch.getReceivedValue(), 30);
-
-    char valueBinary[16];
-    for (int i = 0 ; i < 15 ; i++) valueBinary[i] = rawBinany[i];
-    valueBinary[15] = '\0';
-    Serial.println(valueBinary);
-    ///
-    char idBinary[16];
-    for (int i = 0 ; i < 15 ; i++) idBinary[i] = rawBinany[i + 15];
-    idBinary[15] = '\0';
-    Serial.println(idBinary);
-    Serial.println(rawBinany);
-
-    long valueLong = strtol(valueBinary, NULL, 2);
-    float valueFloat = valueLong / 100.00;
-    char mystr[6];
-
-    dtostrf(valueFloat, 4, 2, mystr);
-
-    //    sprintf(mystr,"%s",);
-
-
-    long idLong = strtol(idBinary, NULL, 2);
-    char idStr[10];
-    sprintf(idStr, "%lu", idLong);
-
-    client.publish(idStr, mystr);
-
-    rcSwitch.resetAvailable();
-
-  }
-}
 
 char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
   static char bin[64];
@@ -246,10 +189,15 @@ void setupTimeClient() {
 
 void updateTriggerServo() {
   timeClient.update();
+  Serial.print("Time hour:  ");
+    Serial.print(timeClient.getHours());
+   Serial.print("Time minutes:  ");
+    Serial.print(timeClient.getMinutes());
   bool isActive = watchDog.isAlarmAtTime(timeClient.getHours(), timeClient.getMinutes());
   if (isActive) {
     Serial.println("Activate servo");
-    activateServo();
+//    activateServo();
+      activateRelays();
   }
 }
 
@@ -264,7 +212,7 @@ void activateRelays() {
 
   for (int i = 0; i < 4; i++) {
    digitalWrite(relayPins[i], LOW);
-   delay(1000);
+     delay(ser_pos_fishtank);
    digitalWrite(relayPins[i], HIGH);
   }
 
@@ -272,7 +220,7 @@ void activateRelays() {
 
 void inactivateRelays() {
   for (int i = 0; i < 4; i++) {
-    digitalWrite(relayPins[i], LOW);
+    digitalWrite(relayPins[i], HIGH);
   }
 }
 
