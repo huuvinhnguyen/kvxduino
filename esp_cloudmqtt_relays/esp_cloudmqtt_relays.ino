@@ -5,10 +5,13 @@
 #include "ViewInteractor.h"
 #include "DataDefault.h"
 #include <ESP8266mDNS.h>
+#include "Relay.h"
 
 ESP8266WebServer server(80);
 uint8_t relayPin = 13;
 uint8_t relayPins[4] = {5, 4, 0, 2};
+Relay relay;
+
 
 
 
@@ -35,21 +38,13 @@ void setup() {
   Serial.begin(115200);
   setupTimeClient();
 
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, HIGH);
-  pinMode(relayPin, OUTPUT);
-  digitalWrite(relayPin, LOW);
-  for (int i = 0; i < 4; i++) {
-    pinMode(relayPins[i], OUTPUT);
-      digitalWrite(relayPins[i], HIGH);
-
-  }
-
   loadDataDefault();
 
   configureServer();
 
   setupWiFi();
+
+  relay.setup("");
 
 }
 
@@ -74,7 +69,15 @@ void loop() {
 
   server.handleClient();
 
-  updateTriggerServo();
+  updateTriggerRelay();
+  relay.loop([](int count) {
+    String switchTopic = String(configuration.mqttpath) + "switchon";
+    Serial.println(switchTopic);
+
+    client.publish(switchTopic.c_str(), "done", true);
+
+    Serial.println(count);
+  });
 }
 
 
@@ -99,9 +102,9 @@ char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
   return bin;
 }
 
-#include <Servo.h>
-
-Servo myservo;
+//#include <Servo.h>
+//
+//Servo myservo;
 #define CONTROL_PIN D7
 int ser_pos_feeder = 70;
 int ser_pos_fishtank = 50;
@@ -128,26 +131,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   String publishTopic = String(configuration.mqttpath) + "switch";
 
-  if (strcmp(topic, publishTopic.c_str()) == 0) {
+  relay.handleMessage(topic, str);
 
-    if (str.equals("1")) {
-      digitalWrite(ledPin, LOW);
-      //      activateServo();
-      activateRelays();
-
-
-      client.publish(topic, "0", true);
-      delay(100);
-      client.publish(topic, "done", false);
-
-    } else if (str.equals("0"))  {
-//      inactivateRelays();
-
-      digitalWrite(ledPin, HIGH);
-    } else if (str.equals("done")) {
-      //      client.publish(topic, "0", true);
-    }
-  }
 
   String openValueTopic = String(configuration.mqttpath) + "openvalue";
   if (strcmp(topic, openValueTopic.c_str()) == 0) {
@@ -159,7 +144,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       ser_pos_fishtank = str.toInt();
       Serial.print("set value open: ");
       Serial.println(ser_pos_fishtank);
-      client.publish(topic, "done", false);
+      //      client.publish(topic, "done", false);
     }
   }
 
@@ -173,7 +158,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       watchDog.setTimeString(str);
       Serial.print("trigger string: ");
       Serial.println(str);
-      client.publish(topic, "done", false);
+      //      client.publish(topic, "done", false);
     }
   }
 
@@ -187,17 +172,13 @@ void setupTimeClient() {
   timeClient.begin();
 }
 
-void updateTriggerServo() {
+void updateTriggerRelay() {
   timeClient.update();
-  Serial.print("Time hour:  ");
-    Serial.print(timeClient.getHours());
-   Serial.print("Time minutes:  ");
-    Serial.print(timeClient.getMinutes());
+
   bool isActive = watchDog.isAlarmAtTime(timeClient.getHours(), timeClient.getMinutes());
   if (isActive) {
     Serial.println("Activate servo");
-//    activateServo();
-      activateRelays();
+    activateRelays();
   }
 }
 
@@ -211,9 +192,9 @@ void activateServo() {
 void activateRelays() {
 
   for (int i = 0; i < 4; i++) {
-   digitalWrite(relayPins[i], LOW);
-     delay(ser_pos_fishtank);
-   digitalWrite(relayPins[i], HIGH);
+    digitalWrite(relayPins[i], LOW);
+    delay(ser_pos_fishtank);
+    digitalWrite(relayPins[i], HIGH);
   }
 
 }
@@ -465,16 +446,20 @@ void connectMQTT() {
 
     Serial.println("connected");
     String switchTopic = String(configuration.mqttpath) + "switch";
-    client.subscribe(switchTopic.c_str(), 0);
+    client.subscribe(switchTopic.c_str(), 1);
 
-    String openValueTopic = String(configuration.mqttpath) + "openvalue";
-    client.subscribe(openValueTopic.c_str(), 1);
+    String switchonTopic = String(configuration.mqttpath) + "switchon";
+    client.subscribe(switchonTopic.c_str(), 1);
 
     String timeTriggerTopic = String(configuration.mqttpath) + "timetrigger";
     client.subscribe(timeTriggerTopic.c_str(), 1);
 
     String firstPingTopic = String(configuration.mqttpath) + "FirstPing";
     client.publish(firstPingTopic.c_str(), "Hello ");
+
+    String longlast = String(configuration.mqttpath) + "longlast";
+    client.subscribe(longlast.c_str(), 1);
+
   } else {
 
     Serial.print("failed with state ");
