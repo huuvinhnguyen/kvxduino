@@ -30,13 +30,11 @@ void Relay::loop(callbackFunc func) {
     startAttempedTime = 0;
     Serial.println("Switch Off");
         cb1(201);
-
-
   }
 }
 
 void Relay::setOn(bool isOn) {
-  int value = (isOn) ? LOW : HIGH;
+  int value = (isOn) ? HIGH : LOW;
   for (int i = 0; i < sizeof(relayPins); i++) {
     digitalWrite(relayPins[i], value);
     Serial.println("Switch value:");

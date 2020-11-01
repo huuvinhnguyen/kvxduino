@@ -71,10 +71,15 @@ void loop() {
 
   updateTriggerRelay();
   relay.loop([](int count) {
-    String switchTopic = String(configuration.mqttpath) + "switchon";
+    String switchonTopic = String(configuration.mqttpath) + "switchon";
+    Serial.println(switchonTopic);
+
+    client.publish(switchonTopic.c_str(), "done", true);
+
+    String switchTopic = String(configuration.mqttpath) + "switch";
     Serial.println(switchTopic);
 
-    client.publish(switchTopic.c_str(), "done", true);
+    client.publish(switchTopic.c_str(), "0", true);
 
     Serial.println(count);
   });
@@ -177,33 +182,11 @@ void updateTriggerRelay() {
 
   bool isActive = watchDog.isAlarmAtTime(timeClient.getHours(), timeClient.getMinutes());
   if (isActive) {
-    Serial.println("Activate servo");
-    activateRelays();
+    Serial.println("Activate relay");
+    relay.switchOn();
   }
 }
 
-void activateServo() {
-
-  digitalWrite(relayPin, HIGH);
-  delay(ser_pos_fishtank);
-  digitalWrite(relayPin, LOW);
-}
-
-void activateRelays() {
-
-  for (int i = 0; i < 4; i++) {
-    digitalWrite(relayPins[i], LOW);
-    delay(ser_pos_fishtank);
-    digitalWrite(relayPins[i], HIGH);
-  }
-
-}
-
-void inactivateRelays() {
-  for (int i = 0; i < 4; i++) {
-    digitalWrite(relayPins[i], HIGH);
-  }
-}
 
 void setupWiFi() {
   delay(500);
