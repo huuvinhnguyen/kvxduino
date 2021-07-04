@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <title>MQTT Configuration</title>
+  
+<!--  
+  <link rel='stylesheet prefetch' href='https://cdnjs.cloudflare.com/ajax/libs/ionicons/2.0.1/css/ionicons.css'>
+<link rel='stylesheet prefetch' href='https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css'>
+-->
+      <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="signupSection">
+  <form action="wifisetting" method="GET" class="signupForm" name="signupform">
+    <h2>Configuration</h2>
+    <ul class="noBullet">
+      <li>
+        <label for="ssid"></label>
+        <input type="ssid" class="inputFields" id="ssid" name="ssid" placeholder="SSID" value="" required/>
+      </li>
+	  <li>
+        <label for="wifiPassword"></label>
+        <input type="password" class="inputFields" id="wifiPassword" name="wifiPassword" placeholder="Wifi Password" value="" required/>
+      </li>
+      
+      <li id="center-btn">
+        <input type="submit" id="join-btn" name="save" alt="Save" value="Save">
+      </li>
+    </ul>
+  </form>
+</div>
+  
+  <!--  <script src="index.js"></script> -->
+
+</body>
+</html>
