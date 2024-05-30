@@ -5,7 +5,7 @@ void Relay::setup(String mqttPath) {
 
   for (int i = 0; i < sizeof(relayPins); i++) {
     pinMode(relayPins[i], OUTPUT);
-    digitalWrite(relayPins[i], HIGH);
+    digitalWrite(relayPins[i], LOW);
   }
 }
 
@@ -34,15 +34,16 @@ void Relay::loop(callbackFunc func) {
 }
 
 void Relay::setOn(bool isOn) {
-  int value = (isOn) ? HIGH : LOW;
+  uint8_t relayValue = (isOn) ? HIGH : LOW;
   for (int i = 0; i < sizeof(relayPins); i++) {
-    digitalWrite(relayPins[i], value);
+    digitalWrite(relayPins[i], relayValue);
     Serial.println("Switch value:");
 
-    Serial.println(value);
-
+    Serial.println(relayValue);
 
   }
+  value = relayValue;
+
 }
 
 
@@ -53,6 +54,12 @@ void Relay::switchOn() {
 
 void Relay::handleMessage(char *topic, String message) {
   String switchTopic = "switch";
+
+  if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
+  // Xử lý message
+   }
+ 
+  
   if (strcmp(topic, switchTopic.c_str()) == 0) {
     if (message.equals("1")) {
 

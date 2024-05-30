@@ -37,3 +37,7 @@ bool WatchDog::isAlarmAtTime(int hours, int minutes) {
 void WatchDog::setTimeString(String timeString) {
   this->timeString = timeString;
 }
+
+String WatchDog::getTimeString() {
+  return this->timeString;
+}

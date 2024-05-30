@@ -6,6 +6,10 @@
 #include "DataDefault.h"
 #include <ESP8266mDNS.h>
 #include "Relay.h"
+#include "secrets.h"
+#include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+
 
 ESP8266WebServer server(80);
 uint8_t relayPin = 13;
@@ -13,22 +17,24 @@ uint8_t relayPins[4] = {5, 4, 0, 2};
 Relay relay;
 
 
-
-
 struct Configuration {
 
-  char mqttServer[30];
+  char mqttServer[60] = "a2eoz3l3pmara3-ats.iot.ap-southeast-1.amazonaws.com\0";
   char mqttUser[30];
   char mqttPassword[30];
   int mqttPort = 14985;
   char mqttpath[30];
-  char wifiSSID[30];
-  char wifiPassword[30];
+  char wifiSSID[30] = "U80_BA37C\0";
+  char wifiPassword[30] = "chuyendth\0";
 
 } configuration;
 
-WiFiClient espClient;
-PubSubClient client(espClient);
+WiFiClientSecure net;
+
+BearSSL::X509List cert(cacert);
+BearSSL::X509List client_crt(client_cert);
+BearSSL::PrivateKey key(privkey);
+PubSubClient client(net);
 
 uint8_t ledPin = 17;
 
@@ -40,11 +46,14 @@ void setup() {
 
   loadDataDefault();
 
-  configureServer();
+  //  configureServer();
 
   setupWiFi();
 
-  relay.setup("");
+  //  relay.setup("");
+  digitalWrite(D4, LOW);
+
+
 
 }
 
@@ -67,53 +76,24 @@ void loop() {
     loopConnectWifi();
   }
 
-  server.handleClient();
+  //  server.handleClient();
 
   updateTriggerRelay();
   relay.loop([](int count) {
-    String switchonTopic = String(configuration.mqttpath) + "switchon";
-    Serial.println(switchonTopic);
+    //      String switchonTopic = String(configuration.mqttpath) + "switchon";
+    //      Serial.println(switchonTopic);
+    //
+    //      client.publish(switchonTopic.c_str(), "done", true);
+    //
+    //      String switchTopic = String(configuration.mqttpath) + "switch";
+    //      Serial.println(switchTopic);
+    //
+    //      client.publish(switchTopic.c_str(), "0", true);
+    //
+    //      Serial.println(count);
 
-    client.publish(switchonTopic.c_str(), "done", true);
-
-    String switchTopic = String(configuration.mqttpath) + "switch";
-    Serial.println(switchTopic);
-
-    client.publish(switchTopic.c_str(), "0", true);
-
-    Serial.println(count);
   });
 }
-
-
-char * dec2binWzerofill(unsigned long Dec, unsigned int bitLength) {
-  static char bin[64];
-  unsigned int i = 0;
-
-  while (Dec > 0) {
-    bin[32 + i++] = ((Dec & 1) > 0) ? '1' : '0';
-    Dec = Dec >> 1;
-  }
-
-  for (unsigned int j = 0; j < bitLength; j++) {
-    if (j >= bitLength - i) {
-      bin[j] = bin[ 31 + i - (j - (bitLength - i)) ];
-    } else {
-      bin[j] = '0';
-    }
-  }
-  bin[bitLength] = '\0';
-
-  return bin;
-}
-
-//#include <Servo.h>
-//
-//Servo myservo;
-#define CONTROL_PIN D7
-int ser_pos_feeder = 70;
-int ser_pos_fishtank = 50;
-int pos = 0;    // variable to store the servo position
 
 #include <NTPClient.h>
 #include "Timer.h"
@@ -122,9 +102,53 @@ const long utcOffsetInSeconds = 7 * 3600;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 WatchDog watchDog;
 
+
+time_t now;
+time_t nowish = 1510592825;
+void NTPConnect(void)
+{
+  Serial.print("Setting time using SNTP");
+  configTime(TIME_ZONE * 3600, 0 * 3600, "pool.ntp.org", "time.nist.gov");
+  now = time(nullptr);
+  while (now < nowish)
+  {
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println("done!");
+  struct tm timeinfo;
+  gmtime_r(&now, &timeinfo);
+  Serial.print("Current time: ");
+  Serial.print(asctime(&timeinfo));
+}
+
+
+
 void callback(char* topic, byte* payload, unsigned int length) {
 
   payload[length] = '\0';
+
+  // Khởi tạo một bộ đệm để chứa payload
+  char buffer[length + 1];
+  memcpy(buffer, payload, length + 1);
+
+  // Khởi tạo một object JSON và parse payload
+  StaticJsonDocument<200> doc;
+  DeserializationError error = deserializeJson(doc, buffer);
+
+  // Kiểm tra lỗi parse
+  if (error) {
+    Serial.print("Failed to parse JSON: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  // Truy cập các trường trong object JSON
+  const char* message = doc["message"];
+  Serial.print("Received message: ");
+  Serial.print(message);
+
 
   Serial.print("Message arrived in topic: ");
   Serial.println(topic);
@@ -134,42 +158,40 @@ void callback(char* topic, byte* payload, unsigned int length) {
   String str = (String)charArray;
   Serial.print(str);
 
-  String publishTopic = String(configuration.mqttpath) + "switch";
-
-  relay.handleMessage(topic, str);
-
-
-  String openValueTopic = String(configuration.mqttpath) + "openvalue";
-  if (strcmp(topic, openValueTopic.c_str()) == 0) {
-
-    if (str.equals("done")) {
-      Serial.println("#done");
-    } else {
-
-      ser_pos_fishtank = str.toInt();
-      Serial.print("set value open: ");
-      Serial.println(ser_pos_fishtank);
-      //      client.publish(topic, "done", false);
-    }
+  if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
+    int value = doc["value"];
+    relay.handleMessage("switch", String(value));
+    String jsonString = getStateMessage(relay);
+    client.publish(deviceId.c_str(), jsonString.c_str(), true);
   }
 
-  String timeTriggerTopic = String(configuration.mqttpath) + "timetrigger";
+  String timeTriggerTopic = deviceId + "/timetrigger";
   if (strcmp(topic, timeTriggerTopic.c_str()) == 0) {
+    String value = doc["value"];
+    watchDog.setTimeString(value);
+    String jsonString = getStateMessage(relay);
+    client.publish(deviceId.c_str(), jsonString.c_str(), true);
 
-    if (str.equals("done")) {
-      Serial.println("#done");
-    } else {
-
-      watchDog.setTimeString(str);
-      Serial.print("trigger string: ");
-      Serial.println(str);
-      //      client.publish(topic, "done", false);
-    }
   }
 
-  Serial.println("ok");
-  Serial.println("-----------------------");
-  //  digitalWrite(ledPin, !digitalRead(ledPin));
+  String longlastTopic = deviceId + "/longlast";
+  if (strcmp(topic, longlastTopic.c_str()) == 0) {
+    int value = doc["value"];
+    relay.longlast = value;
+    String jsonString = getStateMessage(relay);
+    client.publish(deviceId.c_str(), jsonString.c_str(), true);
+
+  }
+
+  String switchOnTopic = deviceId + "/switchon";
+  if (strcmp(topic, switchOnTopic.c_str()) == 0) {
+    int longlast = doc["longlast"];
+    relay.longlast = longlast;
+    relay.switchOn();
+    String jsonString = getStateMessage(relay);
+    client.publish(deviceId.c_str(), jsonString.c_str(), true);
+
+  }
 
 }
 
@@ -199,14 +221,14 @@ void setupWiFi() {
   delay(500);
 
   //  const char* ssid = "khuonvienxanh";
-  String ssid = "KVX" + String(ESP.getChipId());
+  String ssid = "kv_" + String(ESP.getChipId());
 
   WiFi.softAP(ssid.c_str());
   IPAddress myIP = WiFi.softAPIP();
 
   long now = millis();
 
-  while ((millis() - now) < 30000) {
+  while ((millis() - now) < 5000) {
 
     server.handleClient();
 
@@ -293,7 +315,9 @@ void configureServer() {
     String port = server.arg("port");
     String topicpath = server.arg("topicpath");
 
-    strcpy( configuration.mqttServer, serverString.c_str());
+    if (strcmp(serverString.c_str(), "") != 0) {
+      strcpy(configuration.mqttServer, serverString.c_str());
+    }
     strcpy( configuration.mqttUser, username.c_str());
     strcpy( configuration.mqttPassword, password.c_str());
     strcpy( configuration.mqttpath, topicpath.c_str());
@@ -381,22 +405,27 @@ void connectWifi() {
 
   delay(500);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(configuration.wifiSSID, configuration.wifiPassword);
+  //  WiFi.begin(configuration.wifiSSID, configuration.wifiPassword);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("SSID: ");
-  Serial.println(configuration.wifiSSID);
-  Serial.print("Password: ");
+  Serial.println(WIFI_SSID);
+  Serial.println("Password: ");
+  Serial.println(WIFI_PASSWORD);
 
-  Serial.println(configuration.wifiPassword);
 
-  Serial.print("wifi connecting...");
+  //  Serial.println(configuration.wifiPassword);
+
+  Serial.println("wifi connecting...");
 }
 
 long lastReconnectMQTTAttempt = 0;
 
 void loopConnectMQTT() {
 
+
+
   long now = millis();
-  if (now - lastReconnectMQTTAttempt > 60000) {
+  if (now - lastReconnectMQTTAttempt > 5000) {
 
     lastReconnectMQTTAttempt = now;
     // Attempt to connect
@@ -414,33 +443,50 @@ void connectMQTT() {
   if (client.connected()) {
     return;
   }
-  client.setServer(configuration.mqttServer, configuration.mqttPort);
+
+  NTPConnect();
+
+  net.setTrustAnchors(&cert);
+  net.setClientRSACert(&client_crt, &key);
+
+  client.setServer(MQTT_HOST, 8883);
   client.setCallback(callback);
 
-  Serial.println(configuration.mqttServer);
-  Serial.println(configuration.mqttPort);
-  Serial.println(configuration.mqttUser);
-  Serial.println(configuration.mqttPassword);
-  Serial.println(configuration.mqttpath);
+  Serial.println(MQTT_HOST);
+  Serial.println(deviceId);
 
   Serial.println("Connecting to MQTT...");
 
-  if (client.connect("ESP8266Client", configuration.mqttUser, configuration.mqttPassword )) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(1000);
+  }
+
+  if (client.connect(deviceId.c_str())) {
 
     Serial.println("connected");
-    String switchTopic = String(configuration.mqttpath) + "switch";
+    String switchTopic = deviceId + "/switch";
     client.subscribe(switchTopic.c_str(), 1);
+    //    StaticJsonDocument<200> jsonDoc;
+    //    jsonDoc["value"] = relay.value;
+    //    String jsonString;
+    //    serializeJson(jsonDoc, jsonString);
+    //    client.publish(deviceId.c_str(), jsonString.c_str(), true);
+    //
 
-    String switchonTopic = String(configuration.mqttpath) + "switchon";
+    relay.setup("");
+    String switchonTopic = deviceId + "/switchon";
     client.subscribe(switchonTopic.c_str(), 1);
 
-    String timeTriggerTopic = String(configuration.mqttpath) + "timetrigger";
+    String timeTriggerTopic = deviceId + "/timetrigger";
     client.subscribe(timeTriggerTopic.c_str(), 1);
 
-    String firstPingTopic = String(configuration.mqttpath) + "FirstPing";
-    client.publish(firstPingTopic.c_str(), "Hello ");
+    //    String jsonString = getStateMessage(relay);
+    //    client.publish(deviceId.c_str(), jsonString.c_str(), true);
+    client.subscribe(deviceId.c_str(), 1);
 
-    String longlast = String(configuration.mqttpath) + "longlast";
+    String longlast = deviceId + "/longlast";
     client.subscribe(longlast.c_str(), 1);
 
   } else {
@@ -448,4 +494,18 @@ void connectMQTT() {
     Serial.print("failed with state ");
     Serial.print(client.state());
   }
+}
+
+String getStateMessage(Relay relay) {
+
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["device_type"] = "switch";
+  jsonDoc["device_id"] = deviceId;
+  jsonDoc["value"] = relay.value;
+  jsonDoc["update_at"] = timeClient.getEpochTime();
+  jsonDoc["longlast"] = relay.longlast;
+  jsonDoc["timetrigger"] = watchDog.getTimeString();
+  String jsonString;
+  serializeJson(jsonDoc, jsonString);
+  return jsonString;
 }
