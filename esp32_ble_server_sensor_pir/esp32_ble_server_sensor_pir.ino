@@ -9,6 +9,11 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+const int PIR_SENSOR_OUTPUT_PIN = 13;
+
+// Define the pin for the built-in LED
+#define LED_BUILTIN 2  // Adjust this pin according to your setup
+
 BLEServer *pServer;
 
 //BLE server name
@@ -43,11 +48,14 @@ class MyServerCallbacks: public BLEServerCallbacks {
     Serial.println("Advertising started");
   }
 };
-void setup() {
-  // Start serial communication 
-  Serial.begin(115200);
-  // Start BME sensor
-  initBME();
+
+void setupPir() {
+  pinMode(PIR_SENSOR_OUTPUT_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(13), pir, RISING);  /* Interrupt on rising edge on pin 13 */
+}
+
+void setupBLE() {
+
   // Create the BLE Device
   BLEDevice::init(bleServerName);
   // Create the BLE Server
@@ -63,21 +71,49 @@ void setup() {
   // Start advertising
   pServer->getAdvertising()->start();
   Serial.println("Waiting a client connection to notify...");
+
 }
+
+void pir(){
+  Serial.println("Object Detected");
+  int32_t value = 1; // Set the value to 1
+
+  pressureCharacteristic.setValue((uint8_t *)&value, 4); // Set the value as 4 bytes
+  pressureCharacteristic.notify(); // Notify connected client
+}
+void setup() {
+  // Start serial communication 
+  Serial.begin(115200);
+
+    // Initialize the LED pin as an output
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);  // Ensure the LED is off at the start
+
+  // Start BME sensor
+  initBME();
+  setupBLE();
+  setupPir();
+}
+
+uint8_t value = 0;
+
 void loop() {
   if (deviceConnected) {
   
-    float p = random(0, 10000) / 100.0;
-    //Notify temperature reading
+    // float p = random(0, 10000) / 100.0;
+    // //Notify temperature reading
 
-    uint16_t pressure = (uint16_t)p;
-    //Set humidity Characteristic value and notify connected client
-    pressureCharacteristic.setValue(pressure);
-    pressureCharacteristic.notify();   
-    Serial.print("Pressure: ");
-    Serial.print(p);
-    Serial.println(" hPa");
+    // uint16_t pressure = (uint16_t)p;
+    // //Set humidity Characteristic value and notify connected client
+    pressureCharacteristic.setValue((uint8_t *)&value, 4);
+    pressureCharacteristic.notify();
+    value++;
+    digitalWrite(LED_BUILTIN, HIGH);
     delay(1000);
+  } else {
+
+    digitalWrite(LED_BUILTIN, LOW);
+    // reconnect here
   }
 
 }
