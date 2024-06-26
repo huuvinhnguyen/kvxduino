@@ -73,8 +73,8 @@ bool connectToServer(BLEAddress pAddress) {
   }
 
   // Obtain a reference to the characteristics in the service of the remote BLE server.
-//  characteristic = pRemoteService->getCharacteristic(characteristicUUID);
-   characteristic = pRemoteService->getCharacteristics()->first;
+  characteristic = pRemoteService->getCharacteristic(characteristicUUID);
+//   characteristic = pRemoteService->getCharacteristics()->first;
   if (characteristic == nullptr) {
     Serial.print("Failed to find our characteristic UUID: ");
     pClient->disconnect();
@@ -201,6 +201,7 @@ void loop() {
     digitalWrite(LED_BUILTIN, LOW);
     ledOn = false;  // Reset the LED on flag
   }
+
 
   delay(1000); // Delay a second between loops
 }
