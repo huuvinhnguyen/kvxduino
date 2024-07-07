@@ -9,10 +9,10 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
-const int PIR_SENSOR_OUTPUT_PIN = 13;
+const int PIR_SENSOR_OUTPUT_PIN = 3;
 
 // Define the pin for the built-in LED
-#define LED_BUILTIN 2  // Adjust this pin according to your setup
+#define LED_BUILTIN 8  // Adjust this pin according to your setup
 
 BLEServer *pServer;
 
@@ -51,7 +51,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 void setupPir() {
   pinMode(PIR_SENSOR_OUTPUT_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(13), pir, RISING);  /* Interrupt on rising edge on pin 13 */
+  attachInterrupt(digitalPinToInterrupt(3), pir, RISING);  /* Interrupt on rising edge on pin 13 */
 }
 
 void setupBLE() {
@@ -100,20 +100,14 @@ uint8_t value = 0;
 void loop() {
   if (deviceConnected) {
   
-    // float p = random(0, 10000) / 100.0;
-    // //Notify temperature reading
-
-    // uint16_t pressure = (uint16_t)p;
-    // //Set humidity Characteristic value and notify connected client
     pressureCharacteristic.setValue((uint8_t *)&value, 4);
     pressureCharacteristic.notify();
     value++;
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED_BUILTIN, LOW);
     delay(1000);
   } else {
 
-    digitalWrite(LED_BUILTIN, LOW);
-    // reconnect here
+    digitalWrite(LED_BUILTIN, HIGH);
   }
 
 }

@@ -12,10 +12,10 @@
 #define bleServerName "ESP32_BME280"
 
 // Define the pin for the built-in LED
-#define LED_BUILTIN 2  // Adjust this pin according to your setup
+#define LED_BUILTIN 8  // Adjust this pin according to your setup
 
 // Define the pin for the LED
-#define LED_PIN 13  // Adjust this pin according to your setup
+#define LED_PIN 9   // Adjust this pin according to your setup
 
 /* UUID's of the service, characteristic that we want to read */
 // BLE Service
@@ -56,7 +56,6 @@ const unsigned long ledDuration = 5000; // LED on duration in milliseconds
 
 // Connect to the BLE Server that has the name, Service, and Characteristics
 bool connectToServer(BLEAddress pAddress) {
-  pClient = BLEDevice::createClient();
   Serial.println(" - Created client");
 
   // Connect to the remote BLE Server.
@@ -136,6 +135,8 @@ void printReadings() {
 }
 
 void setupBLE() {
+  pClient = BLEDevice::createClient();
+
    // Retrieve a Scanner and set the callback we want to use to be informed when we
   // have detected a new device. Specify that we want active scanning and start the
   // scan to run for 30 seconds.
@@ -181,7 +182,7 @@ void loop() {
     doConnect = false;
   }
 
-  // If the connection is lost, try to reconnect
+//   If the connection is lost, try to reconnect
   if (!pClient->isConnected()) {
     connected = false;
     Serial.println("Disconnected from server. Scanning for new connection...");
@@ -202,6 +203,7 @@ void loop() {
     ledOn = false;  // Reset the LED on flag
   }
 
+  Serial.println("bbbb.....");
 
   delay(1000); // Delay a second between loops
 }
