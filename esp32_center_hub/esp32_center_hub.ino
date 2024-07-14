@@ -13,14 +13,19 @@
 #include <BLEUtils.h>
 #include <BLEAdvertisedDevice.h>
 #include <BLEConnector.h>
+#include <MQTTHandler.h>
 
 #include <WiFiClient.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiManager.h>
+#include <WiFiHandler.h>
 #include <ESP_DoubleResetDetector.h>
 
 #include <ESPmDNS.h>
+//#include <NTPClient.h>
+#include "Timer.h"
+#include "Relay.h"
 
 
 const int PIR_SENSOR_OUTPUT_PIN = 3;
@@ -31,31 +36,35 @@ const unsigned long RECONNECT_INTERVAL = 5000;  // 5 seconds
 int countDevice = 0;
 
 BLEConnector* connector = new BLEConnector();
+MQTTHandler* mqttHandler = new MQTTHandler();
 
-WiFiClient net;
-PubSubClient client(net);
+
+WatchDog watchDog;
+WiFiHandler* wifiHandler = new WiFiHandler();
+Relay relay;
 
 
 void setup() {
   Serial.begin(115200);
-  setupWiFi();
+  wifiHandler->setupWiFi();
   connector->setupBLE();
+  connector->registerNotifyCallback(handleBLENotify);
   Serial.println("setup");
 }
 
 void loop() {
   Serial.println("loop");
 
-//    if (WiFi.status() == WL_CONNECTED) {
-//      if (client.connected()) {
-//        client.loop();
-//      } else {
-//        loopConnectMQTT();
-//      }
-//    } else {
-//      loopConnectWiFi();
-//    }
-
+  if (WiFi.status() == WL_CONNECTED) {
+    if (mqttHandler->connected()) {
+      mqttHandler->loopConnectMQTT();
+      
+    } else {
+      mqttHandler->loopReconnectMQTT();
+    }
+  } else {
+    wifiHandler->loopConnectWiFi();
+  }
 
   connector->loopConnectBLE();
 
@@ -63,40 +72,8 @@ void loop() {
 
 }
 
-void loopConnectWiFi() {
-
-}
-
-void loopConnectMQTT() {
-
-}
-
-
-void setupWiFi() {
-  //WiFiManager
-  //Local intialization. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
-
-  //exit after config instead of connecting
-  wifiManager.setBreakAfterConfig(true);
-
-  //reset settings - for testing
-  //wifiManager.resetSettings();
-
-
-  //tries to connect to last known settings
-  //if it does not connect it starts an access point with the specified name
-  //here  "AutoConnectAP" with password "password"
-  //and goes into a blocking loop awaiting configuration
-  if (!wifiManager.autoConnect("AutoConnectAP")) {
-    Serial.println("failed to connect, we should reset as see if it connects");
-    delay(3000);
-    ESP.restart();
-    delay(5000);
-  }
-
-  //if you get here you have connected to the WiFi
-  Serial.println("connected...yeey :)");
-  Serial.println("local ip");
-  Serial.println(WiFi.localIP());
+void handleBLENotify(int32_t notifyValue) {
+  Serial.print("Handled notify value: ");
+  Serial.println(notifyValue);
+  mqttHandler->publish("switchon", "okok");
 }

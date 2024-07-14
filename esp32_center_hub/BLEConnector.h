@@ -22,7 +22,7 @@ const uint8_t notificationOff[] = {0x0, 0x0};
 // Callback function that gets called, when another device's advertisement has been received
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
-      Serial.println("BLEAdvertisedDeviceCallbacks--- onResult advertisedDevice");
+      //      Serial.println("BLEAdvertisedDeviceCallbacks--- onResult advertisedDevice");
 
       SlaveDevice* dev = getDeviceByName(advertisedDevice.getName().c_str());
       if (dev != nullptr) {
@@ -34,11 +34,15 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     }
 };
 
+typedef void (*BLENotifyCallback)(int32_t notifyValue);
 
 class BLEConnector {
+  private:
+    BLENotifyCallback notifyCallbackFunc;
   public:
 
     int countDevice = 0;
+
     void loopConnectBLE() {
 
       //  unsigned long currentMillis = millis();
@@ -89,9 +93,15 @@ class BLEConnector {
       BLEScan* pBLEScan = BLEDevice::getScan();
       pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
       pBLEScan->setActiveScan(true);
+      pBLEScan->setInterval(9999);
+      pBLEScan->setWindow(99);
       pBLEScan->start(5);
 
       countDevice = 0;
 
+    }
+
+    void registerNotifyCallback(BLENotifyCallback callback) {
+      notifyCallbackFunc = callback;
     }
 };

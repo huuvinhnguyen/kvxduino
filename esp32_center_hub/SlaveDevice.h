@@ -4,7 +4,13 @@
 #include <BLEUtils.h>
 #include <BLEAdvertisedDevice.h>
 
+typedef void (*SlaveDeviceNotifyCallback)(int32_t notifyValue);
+
 class SlaveDevice {
+  private:
+    SlaveDeviceNotifyCallback notifyCallbackFunc;
+    static SlaveDevice* instance;
+
   public:
     BLEAdvertisedDevice* advertisedDevice;
     BLEAddress *pServerAddress;
@@ -36,10 +42,11 @@ class SlaveDevice {
       memcpy(&notifyValue, pData, sizeof(notifyValue));
       Serial.println("notify value: ");
       Serial.print(notifyValue);
+
     }
 
     bool connect() {
-       bleClient = BLEDevice::createClient();
+      bleClient = BLEDevice::createClient();
 
       Serial.println(" - Before connect");
       bleClient->connect(*pServerAddress);
@@ -69,10 +76,10 @@ class SlaveDevice {
 
     void createClient() {
       Serial.println("Setup created client");
-//           if (bleClient == nullptr) {
-             bleClient = BLEDevice::createClient();
-    
-//           }
+      //           if (bleClient == nullptr) {
+      bleClient = BLEDevice::createClient();
+
+      //           }
     }
 
     void retrieveData() {
