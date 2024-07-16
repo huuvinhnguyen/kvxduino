@@ -1,17 +1,20 @@
-
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLEAdvertisedDevice.h>
 
-typedef void (*SlaveDeviceNotifyCallback)(int32_t notifyValue);
+using BLENotifyCallback = void(*)(int32_t);
 
 class SlaveDevice {
   private:
-    SlaveDeviceNotifyCallback notifyCallbackFunc;
-    static SlaveDevice* instance;
+    static BLENotifyCallback notifyCallbackFunc;
+
+    SlaveDevice() {
+      // Khởi tạo các thành viên
+    }
 
   public:
+
     BLEAdvertisedDevice* advertisedDevice;
     BLEAddress *pServerAddress;
     std::string serviceUUID;
@@ -28,6 +31,7 @@ class SlaveDevice {
 
     unsigned long lastAttemptTime;
 
+
     SlaveDevice(std::string serviceUUID, std::string charUUID, std::string charName)
       : serviceUUID(serviceUUID), characteristicUUID(charUUID), bleClient(nullptr),
         remoteService(nullptr), remoteCharacteristic(nullptr), temperature(0.0),
@@ -42,6 +46,11 @@ class SlaveDevice {
       memcpy(&notifyValue, pData, sizeof(notifyValue));
       Serial.println("notify value: ");
       Serial.print(notifyValue);
+
+      if (notifyCallbackFunc) {
+        Serial.println("static callback");
+        notifyCallbackFunc(notifyValue);
+      }
 
     }
 
@@ -76,10 +85,8 @@ class SlaveDevice {
 
     void createClient() {
       Serial.println("Setup created client");
-      //           if (bleClient == nullptr) {
       bleClient = BLEDevice::createClient();
 
-      //           }
     }
 
     void retrieveData() {
@@ -91,4 +98,11 @@ class SlaveDevice {
       }
     }
 
+    void registerNotifyCallback(BLENotifyCallback callback) {
+      Serial.println("ble callback level 1");
+      SlaveDevice::notifyCallbackFunc  = callback;
+    }
+
 };
+
+BLENotifyCallback SlaveDevice::notifyCallbackFunc = nullptr;

@@ -150,10 +150,11 @@ class MQTTHandler {
     }
 
     void publish(const char* topic, const char* message) {
+      String switchonTopic = deviceId + "/" + topic;
       if (client.connected()) {
-        client.publish(topic, message);
+        client.publish(switchonTopic.c_str(), message);
         Serial.print("Message published to topic: ");
-        Serial.print(topic);
+        Serial.print(switchonTopic);
         Serial.print(" Message: ");
         Serial.println(message);
       } else {

@@ -39,6 +39,7 @@ typedef void (*BLENotifyCallback)(int32_t notifyValue);
 class BLEConnector {
   private:
     BLENotifyCallback notifyCallbackFunc;
+
   public:
 
     int countDevice = 0;
@@ -48,6 +49,8 @@ class BLEConnector {
       //  unsigned long currentMillis = millis();
 
       SlaveDevice &dev = slaveDevices[countDevice];
+      dev.registerNotifyCallback(notifyCallbackFunc);
+
       Serial.println("Device Name:  ");
       Serial.print(dev.deviceName.c_str());
       if (dev.doConnect == true) {

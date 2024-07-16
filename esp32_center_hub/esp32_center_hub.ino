@@ -58,7 +58,7 @@ void loop() {
   if (WiFi.status() == WL_CONNECTED) {
     if (mqttHandler->connected()) {
       mqttHandler->loopConnectMQTT();
-      
+
     } else {
       mqttHandler->loopReconnectMQTT();
     }
@@ -73,7 +73,8 @@ void loop() {
 }
 
 void handleBLENotify(int32_t notifyValue) {
+  Serial.println("ble callback level 2");
   Serial.print("Handled notify value: ");
   Serial.println(notifyValue);
-  mqttHandler->publish("switchon", "okok");
+//  mqttHandler->publish("switchon", "okok");
 }
