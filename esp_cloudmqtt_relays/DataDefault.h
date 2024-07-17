@@ -1,5 +1,5 @@
 #include <EEPROM.h>
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 
 template <class T>
 class DataDefault {
@@ -47,4 +47,3 @@ class DataDefault {
       return t;
     }
 };
-
