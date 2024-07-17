@@ -110,11 +110,11 @@ class MQTTHandler {
 
       Serial.println("Connecting to MQTT...");
 
-      while (WiFi.status() != WL_CONNECTED)
-      {
-        Serial.print(".");
-        delay(1000);
-      }
+//      while (WiFi.status() != WL_CONNECTED)
+//      {
+//        Serial.print(".");
+//        delay(1000);
+//      }
 
       if (client.connect(deviceId.c_str())) {
 
@@ -161,7 +161,7 @@ class MQTTHandler {
         Serial.println("Client not connected, message not published");
       }
     }
-    
+
     static void callback(char* topic, byte* payload, unsigned int length) {
 
       payload[length] = '\0';

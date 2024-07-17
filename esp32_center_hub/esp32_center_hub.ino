@@ -72,9 +72,36 @@ void loop() {
 
 }
 
-void handleBLENotify(int32_t notifyValue) {
-  Serial.println("ble callback level 2");
-  Serial.print("Handled notify value: ");
-  Serial.println(notifyValue);
-//  mqttHandler->publish("switchon", "okok");
+void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
+                     uint8_t* pData, size_t length, bool isNotify) {
+  
+  //  mqttHandler->publish("switchon", "okok");
+
+  char str[length + 1];
+  memcpy(str, pData, length);
+  str[length] = '\0';
+
+//  Serial.print("Notify callback for characteristic ");
+//  Serial.print(pBLERemoteCharacteristic->getUUID().toString().c_str());
+//  Serial.print(": ");
+//  Serial.println(str);
+
+  // Parse the string to get temperature and humidity
+  String dhtDataString = String(str);
+  int commaIndex = dhtDataString.indexOf(',');
+  if (commaIndex > 0) {
+    String temperatureString = dhtDataString.substring(0, commaIndex);
+    String humidityString = dhtDataString.substring(commaIndex + 1);
+
+    float temperature = temperatureString.toFloat();
+    float humidity = humidityString.toFloat();
+
+//    Serial.print("Parsed Temperature: ");
+//    Serial.print(temperature);
+//    Serial.print(" C, Humidity: ");
+//    Serial.print(humidity);
+//    Serial.println(" %");
+  } else {
+    Serial.println("Failed to parse dhtDataString");
+  }
 }

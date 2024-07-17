@@ -3,15 +3,16 @@
 #include <BLEUtils.h>
 #include <BLEAdvertisedDevice.h>
 
-using BLENotifyCallback = void(*)(int32_t);
+//using BLENotifyCallback = void(*)(int32_t);
+
+using BLENotifyCallback = void(*)(BLERemoteCharacteristic*, uint8_t*, size_t, bool);
+
+
 
 class SlaveDevice {
   private:
+    //    static BLENotifyCallback notifyCallbackFunc;
     static BLENotifyCallback notifyCallbackFunc;
-
-    SlaveDevice() {
-      // Khởi tạo các thành viên
-    }
 
   public:
 
@@ -40,16 +41,9 @@ class SlaveDevice {
     // When the BLE Server sends a new pressure reading with the notify property
     static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic,
                                uint8_t* pData, size_t length, bool isNotify) {
-      // Store pressure value
-      int32_t notifyValue;
-
-      memcpy(&notifyValue, pData, sizeof(notifyValue));
-      Serial.println("notify value: ");
-      Serial.print(notifyValue);
 
       if (notifyCallbackFunc) {
-        Serial.println("static callback");
-        notifyCallbackFunc(notifyValue);
+        notifyCallbackFunc(pBLERemoteCharacteristic, pData, length, isNotify);
       }
 
     }
@@ -62,11 +56,16 @@ class SlaveDevice {
       Serial.println(" - Connected to server ");
 
       remoteService = bleClient->getService(serviceUUID.c_str());
+      Serial.println(" - Connected to server   1 ");
+
       if (remoteService == nullptr) {
         Serial.print("Failed to find our service UUID: ");
         bleClient->disconnect();
         return false;
       }
+
+            Serial.println(" - Connected to server   2 ");
+
 
       remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID.c_str());
       if (remoteCharacteristic == nullptr) {
@@ -99,10 +98,10 @@ class SlaveDevice {
     }
 
     void registerNotifyCallback(BLENotifyCallback callback) {
-      Serial.println("ble callback level 1");
       SlaveDevice::notifyCallbackFunc  = callback;
     }
 
 };
 
 BLENotifyCallback SlaveDevice::notifyCallbackFunc = nullptr;
+//BLENotifyCallback2 SlaveDevice::notifyCallbackFunc2 = nullptr;

@@ -34,7 +34,9 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     }
 };
 
-typedef void (*BLENotifyCallback)(int32_t notifyValue);
+typedef void (*BLENotifyCallback)(BLERemoteCharacteristic* pBLERemoteCharacteristic,
+                               uint8_t* pData, size_t length, bool isNotify);
+//using BLENotifyCallback = void(*)(BLERemoteCharacteristic*, uint8_t*, size_t, bool);
 
 class BLEConnector {
   private:
