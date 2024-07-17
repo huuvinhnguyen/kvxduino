@@ -1,6 +1,10 @@
 #include <FS.h>
+#include <SPIFFS.h>
+#include <WiFi.h>
 #define DBG_OUTPUT_PORT Serial
-#include <ESP8266WebServer.h>
+#include <WebServer.h>
+
+
 
 
 
@@ -13,10 +17,9 @@ class  ViewInteractor {
     bool isFileRead(String path);
     File getFileRead(String path);
     void handleRoot();
-    void serverOnnNotFound(std::unique_ptr<ESP8266WebServer> server);
+    void serverOnnNotFound(std::unique_ptr<WebServer> server);
 
   private:
 
-    std::unique_ptr<ESP8266WebServer> server;
+    std::unique_ptr<WebServer> server;
 };
-

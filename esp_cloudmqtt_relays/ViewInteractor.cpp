@@ -3,12 +3,12 @@
 void ViewInteractor:: lookupFiles() {
 
   SPIFFS.begin();
-  Dir dir = SPIFFS.openDir("/");
-  while (dir.next()) {
-    String fileName = dir.fileName();
-    size_t fileSize = dir.fileSize();
-
-  }
+//  Dir dir = SPIFFS.openDir("/");
+//  while (dir.next()) {
+//    String fileName = dir.fileName();
+//    size_t fileSize = dir.fileSize();
+//
+//  }
 }
 
 String ViewInteractor::getContentType(String filename) {
@@ -51,7 +51,7 @@ File ViewInteractor::getFileRead(String path) {
   return file;
 }
 
-void ViewInteractor::serverOnnNotFound(std::unique_ptr<ESP8266WebServer> server) {
+void ViewInteractor::serverOnnNotFound(std::unique_ptr<WebServer> server) {
 
   server->onNotFound([&, &server]() {
 

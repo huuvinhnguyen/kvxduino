@@ -1,39 +1,40 @@
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiClient.h>
-#include <ESP8266WebServer.h>
+#include <WebServer.h>
 #include "ViewInteractor.h"
 #include "DataDefault.h"
-#include <ESP8266mDNS.h>
 #include "Relay.h"
 #include "secrets.h"
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+#include <ESPmDNS.h>
 
 
-ESP8266WebServer server(80);
+WebServer server(80);
 uint8_t relayPin = 13;
-uint8_t relayPins[4] = {5, 4, 0, 2};
+uint8_t relayPins[6] = {5, 4, 0, 2, 15, 16};
 Relay relay;
 
 
 struct Configuration {
 
-  char mqttServer[60] = "a2eoz3l3pmara3-ats.iot.ap-southeast-1.amazonaws.com\0";
+  char mqttServer[60] = "103.9.77.155\0";
   char mqttUser[30];
   char mqttPassword[30];
   int mqttPort = 14985;
   char mqttpath[30];
-  char wifiSSID[30] = "U80_BA37C\0";
-  char wifiPassword[30] = "chuyendth\0";
+  char wifiSSID[30] = "Huu Si\0";
+  char wifiPassword[30] = "hai1989@\0";
 
 } configuration;
 
-WiFiClientSecure net;
+//WiFiClientSecure net;
+WiFiClient net;
 
-BearSSL::X509List cert(cacert);
-BearSSL::X509List client_crt(client_cert);
-BearSSL::PrivateKey key(privkey);
+//BearSSL::X509List cert(cacert);
+//BearSSL::X509List client_crt(client_cert);
+//BearSSL::PrivateKey key(privkey);
 PubSubClient client(net);
 
 uint8_t ledPin = 17;
@@ -51,7 +52,7 @@ void setup() {
   setupWiFi();
 
   //  relay.setup("");
-  digitalWrite(D4, LOW);
+//  digitalWrite(D4, LOW);
 
 
 
@@ -60,7 +61,7 @@ void setup() {
 
 void loop() {
 
-  MDNS.update();
+//  MDNS.update();
 
   if (WiFi.status() == WL_CONNECTED) {
 
@@ -212,8 +213,9 @@ void updateTriggerRelay() {
 
 void setupWiFi() {
   delay(500);
-  String host = String(ESP.getChipId());
+//  String host = String(ESP.getChipId());
   //  const char* host = "thietbi";
+  String host = "thietbi";
   MDNS.begin(host);
   // Add service to MDNS
   MDNS.addService("http", "tcp", 80);
@@ -221,7 +223,9 @@ void setupWiFi() {
   delay(500);
 
   //  const char* ssid = "khuonvienxanh";
-  String ssid = "kv_" + String(ESP.getChipId());
+//  String ssid = "kv_" + String(ESP.getChipId());
+  String ssid = "kv_";
+
 
   WiFi.softAP(ssid.c_str());
   IPAddress myIP = WiFi.softAPIP();
@@ -446,10 +450,10 @@ void connectMQTT() {
 
   NTPConnect();
 
-  net.setTrustAnchors(&cert);
-  net.setClientRSACert(&client_crt, &key);
+//  net.setTrustAnchors(&cert);
+//  net.setClientRSACert(&client_crt, &key);
 
-  client.setServer(MQTT_HOST, 8883);
+  client.setServer(MQTT_HOST, 1883);
   client.setCallback(callback);
 
   Serial.println(MQTT_HOST);

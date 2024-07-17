@@ -82,16 +82,17 @@
 
 #define SECRET
 
-const char WIFI_SSID[] = "U80_BA37C";              //TAMIM2.4G
-const char WIFI_PASSWORD[] = "chuyendth";           //0544287380
+const char WIFI_SSID[] = "Huu Si";              //TAMIM2.4G
+const char WIFI_PASSWORD[] = "hai1989@";           //0544287380
 //const char WIFI_SSID[] = "Huu Tinh";              //TAMIM2.4G
 //const char WIFI_PASSWORD[] = "12345678";
 
-String deviceId = "kv_" + String(ESP.getChipId());
+//String deviceId = "kv_" + String(ESP.getChipId());
+String deviceId = "kv_";
 
 int8_t TIME_ZONE = -5; //NYC(USA): -5 UTC
 
-const char MQTT_HOST[] = "a2eoz3l3pmara3-ats.iot.ap-southeast-1.amazonaws.com";
+const char MQTT_HOST[] = "103.9.77.155";
 
 
 static const char cacert[] PROGMEM = R"EOF(
