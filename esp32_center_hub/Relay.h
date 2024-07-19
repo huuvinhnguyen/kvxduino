@@ -3,10 +3,9 @@
 class Relay {
   private:
     using callbackFunc = void (*) (int);
-    uint8_t relayPins[4] = {5, 4, 17, 2};
+    uint8_t relayPins[6] = {5, 4, 17, 2, 14, 8};
     bool isSetOnLastingActive = false;
     long startAttempedTime = 0;
-    int longlast = 15;
     String path;
 
   public:
@@ -17,4 +16,7 @@ class Relay {
     callbackFunc cb1;
     void setLonglast(int seconds);
     void switchOn();
+    uint8_t value = LOW;
+    int longlast = 0; //miliseconds
+
 };

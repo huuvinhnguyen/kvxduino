@@ -3,10 +3,6 @@
 #include <WiFi.h>
 
 
-const long utcOffsetInSeconds = 7 * 3600;
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
-
 
 
 bool WatchDog::isAlarmAtTime(int hours, int minutes) {
