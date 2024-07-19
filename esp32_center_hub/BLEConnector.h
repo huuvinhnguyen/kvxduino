@@ -26,9 +26,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
       SlaveDevice* dev = getDeviceByName(advertisedDevice.getName().c_str());
       if (dev != nullptr) {
-        advertisedDevice.getScan()->stop(); // Scan can be stopped, we found what we are looking for
+        //advertisedDevice.getScan()->stop(); // Scan can be stopped, we found what we are looking for
         dev->pServerAddress = new BLEAddress(advertisedDevice.getAddress()); // Address of advertiser is the one we need
         Serial.println("Device found. Connecting!");
+        dev->bleClient->disconnect();
         dev->doConnect = true;
       }
     }
@@ -59,7 +60,7 @@ class BLEConnector {
 
         if (dev.connect()) {
           Serial.println("We are now connected to the BLE Server.");
-          dev.remoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
+//          dev.remoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
         } else {
           Serial.println("We have failed to connect to the server; Restart your device to scan for nearby BLE server again.");
 

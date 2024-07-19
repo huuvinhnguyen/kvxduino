@@ -21,8 +21,8 @@ class SlaveDevice {
     std::string serviceUUID;
     std::string characteristicUUID;
     BLEClient* bleClient;
-    BLERemoteService* remoteService;
-    BLERemoteCharacteristic* remoteCharacteristic;
+//    BLERemoteService* remoteService;
+//    BLERemoteCharacteristic* remoteCharacteristic;
     bool doConnect = false;
 
     float temperature;
@@ -34,9 +34,7 @@ class SlaveDevice {
 
 
     SlaveDevice(std::string serviceUUID, std::string charUUID, std::string charName)
-      : serviceUUID(serviceUUID), characteristicUUID(charUUID), bleClient(nullptr),
-        remoteService(nullptr), remoteCharacteristic(nullptr), temperature(0.0),
-        humidity(0.0), pressure(0.0), lastAttemptTime(0), deviceName(charName) {}
+      : serviceUUID(serviceUUID), characteristicUUID(charUUID), bleClient(nullptr), pressure(0.0), lastAttemptTime(0), deviceName(charName) {}
 
     // When the BLE Server sends a new pressure reading with the notify property
     static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic,
@@ -49,13 +47,21 @@ class SlaveDevice {
     }
 
     bool connect() {
-      bleClient = BLEDevice::createClient();
+
+      if (bleClient == nullptr) {
+        bleClient = BLEDevice::createClient();
+      }
 
       Serial.println(" - Before connect");
-      bleClient->connect(*pServerAddress);
+      bleClient->disconnect();
+      delay(100);
+      if (!bleClient->connect(*pServerAddress)) {
+          return false;
+        }
       Serial.println(" - Connected to server ");
 
-      remoteService = bleClient->getService(serviceUUID.c_str());
+
+      BLERemoteService* remoteService = bleClient->getService(serviceUUID.c_str());
       Serial.println(" - Connected to server   1 ");
 
       if (remoteService == nullptr) {
@@ -67,7 +73,7 @@ class SlaveDevice {
             Serial.println(" - Connected to server   2 ");
 
 
-      remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID.c_str());
+      BLERemoteCharacteristic* remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID.c_str());
       if (remoteCharacteristic == nullptr) {
         Serial.print("Failed to find our characteristic UUID: ");
         Serial.println(characteristicUUID.c_str());
@@ -75,10 +81,20 @@ class SlaveDevice {
         return false;
       }
 
-      Serial.println(" - Found our characteristics");
 
       // Assign callback functions for the Characteristics
-      remoteCharacteristic->registerForNotify(notifyCallback);
+      if(notifyCallback) {
+              Serial.println(" - registerForNotify");
+
+              remoteCharacteristic->registerForNotify(notifyCallback);
+
+        } else {
+            Serial.println(" - registerForNotifyFail");
+
+            return false;
+          }
+      Serial.println(" - Found our characteristics");
+
       return true;
     }
 
@@ -88,14 +104,14 @@ class SlaveDevice {
 
     }
 
-    void retrieveData() {
-      if (remoteCharacteristic->canRead()) {
-        // std::string value = remoteCharacteristic->readValue();
-        // Parse the value according to your data format
-        // Example: assuming value contains temperature, humidity, and pressure
-        // Parse and assign these values to temperature, humidity, pressure
-      }
-    }
+//    void retrieveData() {
+//      if (remoteCharacteristic->canRead()) {
+//        // std::string value = remoteCharacteristic->readValue();
+//        // Parse the value according to your data format
+//        // Example: assuming value contains temperature, humidity, and pressure
+//        // Parse and assign these values to temperature, humidity, pressure
+//      }
+//    }
 
     void registerNotifyCallback(BLENotifyCallback callback) {
       SlaveDevice::notifyCallbackFunc  = callback;

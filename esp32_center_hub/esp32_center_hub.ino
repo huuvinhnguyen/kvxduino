@@ -20,7 +20,7 @@
 #include <PubSubClient.h>
 #include <WiFiManager.h>
 #include <WiFiHandler.h>
-#include <ESP_DoubleResetDetector.h>
+//#include <ESP_DoubleResetDetector.h>
 
 #include <ESPmDNS.h>
 //#include <NTPClient.h>
@@ -35,20 +35,29 @@ const unsigned long RECONNECT_INTERVAL = 5000;  // 5 seconds
 
 int countDevice = 0;
 
-BLEConnector* connector = new BLEConnector();
-MQTTHandler* mqttHandler = new MQTTHandler();
-
-
+//BLEConnector* connector = new BLEConnector();
+//
+//MQTTHandler* mqttHandler = new MQTTHandler();
+//
+//
+//WatchDog watchDog;
+//WiFiHandler* wifiHandler = new WiFiHandler();
+//Relay relay;
+// Global objects
+BLEConnector connector;
+MQTTHandler mqttHandler;
 WatchDog watchDog;
-WiFiHandler* wifiHandler = new WiFiHandler();
+WiFiHandler wifiHandler;
 Relay relay;
 
 
 void setup() {
   Serial.begin(115200);
-  wifiHandler->setupWiFi();
-  connector->setupBLE();
-  connector->registerNotifyCallback(handleBLENotify);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW); 
+  wifiHandler.setupWiFi();
+  connector.setupBLE();
+  connector.registerNotifyCallback(handleBLENotify);
   Serial.println("setup");
 }
 
@@ -56,17 +65,17 @@ void loop() {
   Serial.println("loop");
 
   if (WiFi.status() == WL_CONNECTED) {
-    if (mqttHandler->connected()) {
-      mqttHandler->loopConnectMQTT();
+    if (mqttHandler.connected()) {
+      mqttHandler.loopConnectMQTT();
 
     } else {
-      mqttHandler->loopReconnectMQTT();
+      mqttHandler.loopReconnectMQTT();
     }
   } else {
-    wifiHandler->loopConnectWiFi();
+    wifiHandler.loopConnectWiFi();
   }
 
-  connector->loopConnectBLE();
+  connector.loopConnectBLE();
 
   delay(1000);
 
@@ -96,12 +105,14 @@ void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
     float temperature = temperatureString.toFloat();
     float humidity = humidityString.toFloat();
 
-//    Serial.print("Parsed Temperature: ");
-//    Serial.print(temperature);
-//    Serial.print(" C, Humidity: ");
-//    Serial.print(humidity);
-//    Serial.println(" %");
+    Serial.print("Parsed Temperature: ");
+    Serial.print(temperature);
+    Serial.print(" C, Humidity: ");
+    Serial.print(humidity);
+    Serial.println(" %");
   } else {
     Serial.println("Failed to parse dhtDataString");
   }
+
+
 }
