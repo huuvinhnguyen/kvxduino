@@ -49,11 +49,19 @@ class SlaveDevice {
     }
 
     bool connect() {
-      bleClient = BLEDevice::createClient();
+
+      if (bleClient == nullptr) {
+        bleClient = BLEDevice::createClient();
+      }
 
       Serial.println(" - Before connect");
-      bleClient->connect(*pServerAddress);
+      bleClient->disconnect();
+      delay(100);
+      if (!bleClient->connect(*pServerAddress)) {
+          return false;
+        }
       Serial.println(" - Connected to server ");
+
 
       remoteService = bleClient->getService(serviceUUID.c_str());
       Serial.println(" - Connected to server   1 ");
@@ -78,7 +86,12 @@ class SlaveDevice {
       Serial.println(" - Found our characteristics");
 
       // Assign callback functions for the Characteristics
-      remoteCharacteristic->registerForNotify(notifyCallback);
+      if(notifyCallback) {
+              remoteCharacteristic->registerForNotify(notifyCallback);
+
+        } else {
+            return false;
+          }
       return true;
     }
 

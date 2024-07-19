@@ -26,9 +26,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
       SlaveDevice* dev = getDeviceByName(advertisedDevice.getName().c_str());
       if (dev != nullptr) {
-        advertisedDevice.getScan()->stop(); // Scan can be stopped, we found what we are looking for
+        //advertisedDevice.getScan()->stop(); // Scan can be stopped, we found what we are looking for
         dev->pServerAddress = new BLEAddress(advertisedDevice.getAddress()); // Address of advertiser is the one we need
         Serial.println("Device found. Connecting!");
+        dev->bleClient->disconnect();
         dev->doConnect = true;
       }
     }
