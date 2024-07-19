@@ -1,21 +1,8 @@
-// #include <ESP8266WiFi.h>
-// #include <PubSubClient.h>
-// #include <WiFiClient.h>
-// #include <ESP8266WebServer.h>
-// #include "ViewInteractor.h"
-// #include "DataDefault.h"
-// #include <ESP8266mDNS.h>
-// #include "Relay.h"
-// #include "secrets.h"
+
 #include <ArduinoJson.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLEAdvertisedDevice.h>
 #include <BLEConnector.h>
 #include <MQTTHandler.h>
 
-#include <WiFiClient.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiManager.h>
@@ -23,10 +10,8 @@
 //#include <ESP_DoubleResetDetector.h>
 
 #include <ESPmDNS.h>
-//#include <NTPClient.h>
 #include "Timer.h"
 #include "Relay.h"
-
 
 const int PIR_SENSOR_OUTPUT_PIN = 3;
 #define LED_BUILTIN 8
@@ -35,14 +20,7 @@ const unsigned long RECONNECT_INTERVAL = 5000;  // 5 seconds
 
 int countDevice = 0;
 
-//BLEConnector* connector = new BLEConnector();
-//
-//MQTTHandler* mqttHandler = new MQTTHandler();
-//
-//
-//WatchDog watchDog;
-//WiFiHandler* wifiHandler = new WiFiHandler();
-//Relay relay;
+
 // Global objects
 BLEConnector connector;
 MQTTHandler mqttHandler;
@@ -50,14 +28,15 @@ WatchDog watchDog;
 WiFiHandler wifiHandler;
 Relay relay;
 
-
 void setup() {
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW); 
+  digitalWrite(LED_BUILTIN, LOW);
   wifiHandler.setupWiFi();
   connector.setupBLE();
   connector.registerNotifyCallback(handleBLENotify);
+  mqttHandler.registerCallback(handleMQTTCallback);
+
   Serial.println("setup");
 }
 
@@ -83,17 +62,12 @@ void loop() {
 
 void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
                      uint8_t* pData, size_t length, bool isNotify) {
-  
+
   //  mqttHandler->publish("switchon", "okok");
 
   char str[length + 1];
   memcpy(str, pData, length);
   str[length] = '\0';
-
-//  Serial.print("Notify callback for characteristic ");
-//  Serial.print(pBLERemoteCharacteristic->getUUID().toString().c_str());
-//  Serial.print(": ");
-//  Serial.println(str);
 
   // Parse the string to get temperature and humidity
   String dhtDataString = String(str);
@@ -114,5 +88,54 @@ void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
     Serial.println("Failed to parse dhtDataString");
   }
 
+}
+
+void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
+  payload[length] = '\0';
+
+  Serial.print("Message arrived in topic: ");
+  Serial.println(topic);
+
+  Serial.print("Message:");
+  char *charArray = (char*)payload;
+  String str = (String)charArray;
+  Serial.print(str);
+  //
+  //  String publishTopic = String(configuration.mqttpath) + "switch";
+  //
+  //  relay.handleMessage(topic, str);
+  //
+  //
+  //  String openValueTopic = String(configuration.mqttpath) + "openvalue";
+  //  if (strcmp(topic, openValueTopic.c_str()) == 0) {
+  //
+  //    if (str.equals("done")) {
+  //      Serial.println("#done");
+  //    } else {
+  //
+  //      ser_pos_fishtank = str.toInt();
+  //      Serial.print("set value open: ");
+  //      Serial.println(ser_pos_fishtank);
+  //      //      client.publish(topic, "done", false);
+  //    }
+  //  }
+  //
+  //  String timeTriggerTopic = String(configuration.mqttpath) + "timetrigger";
+  //  if (strcmp(topic, timeTriggerTopic.c_str()) == 0) {
+  //
+  //    if (str.equals("done")) {
+  //      Serial.println("#done");
+  //    } else {
+  //
+  //      watchDog.setTimeString(str);
+  //      Serial.print("trigger string: ");
+  //      Serial.println(str);
+  //      //      client.publish(topic, "done", false);
+  //    }
+  //  }
+  //
+  Serial.println("ok");
+  //  Serial.println("-----------------------");
+  //  //  digitalWrite(ledPin, !digitalRead(ledPin));
 
 }

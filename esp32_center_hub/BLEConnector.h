@@ -16,8 +16,6 @@ SlaveDevice* getDeviceByName(const std::string& name) {
   return nullptr; // Return nullptr if not found
 }
 
-const uint8_t notificationOn[] = {0x1, 0x0};
-const uint8_t notificationOff[] = {0x0, 0x0};
 
 // Callback function that gets called, when another device's advertisement has been received
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -36,7 +34,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 
 typedef void (*BLENotifyCallback)(BLERemoteCharacteristic* pBLERemoteCharacteristic,
-                               uint8_t* pData, size_t length, bool isNotify);
+                                  uint8_t* pData, size_t length, bool isNotify);
 //using BLENotifyCallback = void(*)(BLERemoteCharacteristic*, uint8_t*, size_t, bool);
 
 class BLEConnector {
@@ -60,7 +58,7 @@ class BLEConnector {
 
         if (dev.connect()) {
           Serial.println("We are now connected to the BLE Server.");
-//          dev.remoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
+          //          dev.remoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
         } else {
           Serial.println("We have failed to connect to the server; Restart your device to scan for nearby BLE server again.");
 

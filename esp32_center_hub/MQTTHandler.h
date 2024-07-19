@@ -3,7 +3,9 @@
 #include <NTPClient.h>
 #include <WiFi.h>
 
-using MQTTCallback = void(*)(char*, byte*, unsigned int);
+//using MQTTCallback = void(*)(char*, byte*, unsigned int);
+using MQTTCallback = void(*)(char* topic, byte* payload, unsigned int length);
+
 
 struct Configuration {
 
@@ -54,6 +56,10 @@ class MQTTHandler {
   public:
 
     long lastReconnectMQTTAttempt = 0;
+
+    void registerCallback(MQTTCallback callback) {
+      callbackFunc = callback;
+    }
 
     bool connected() {
       if (client.connected() ) {
@@ -114,11 +120,6 @@ class MQTTHandler {
 
       Serial.println("Connecting to MQTT...");
 
-//      while (WiFi.status() != WL_CONNECTED)
-//      {
-//        Serial.print(".");
-//        delay(1000);
-//      }
 
       if (client.connect(deviceId.c_str())) {
 
@@ -167,54 +168,9 @@ class MQTTHandler {
     }
 
     static void callback(char* topic, byte* payload, unsigned int length) {
-
-      payload[length] = '\0';
-
-      Serial.print("Message arrived in topic: ");
-      Serial.println(topic);
-
-      Serial.print("Message:");
-      char *charArray = (char*)payload;
-      String str = (String)charArray;
-      Serial.print(str);
-      //
-      //  String publishTopic = String(configuration.mqttpath) + "switch";
-      //
-      //  relay.handleMessage(topic, str);
-      //
-      //
-      //  String openValueTopic = String(configuration.mqttpath) + "openvalue";
-      //  if (strcmp(topic, openValueTopic.c_str()) == 0) {
-      //
-      //    if (str.equals("done")) {
-      //      Serial.println("#done");
-      //    } else {
-      //
-      //      ser_pos_fishtank = str.toInt();
-      //      Serial.print("set value open: ");
-      //      Serial.println(ser_pos_fishtank);
-      //      //      client.publish(topic, "done", false);
-      //    }
-      //  }
-      //
-      //  String timeTriggerTopic = String(configuration.mqttpath) + "timetrigger";
-      //  if (strcmp(topic, timeTriggerTopic.c_str()) == 0) {
-      //
-      //    if (str.equals("done")) {
-      //      Serial.println("#done");
-      //    } else {
-      //
-      //      watchDog.setTimeString(str);
-      //      Serial.print("trigger string: ");
-      //      Serial.println(str);
-      //      //      client.publish(topic, "done", false);
-      //    }
-      //  }
-      //
-      Serial.println("ok");
-      //  Serial.println("-----------------------");
-      //  //  digitalWrite(ledPin, !digitalRead(ledPin));
+      callbackFunc(topic, payload, length);
 
     }
 
 };
+MQTTCallback MQTTHandler::callbackFunc = nullptr;
