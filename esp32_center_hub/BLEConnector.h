@@ -60,7 +60,7 @@ class BLEConnector {
 
         if (dev.connect()) {
           Serial.println("We are now connected to the BLE Server.");
-          dev.remoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
+//          dev.remoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
         } else {
           Serial.println("We have failed to connect to the server; Restart your device to scan for nearby BLE server again.");
 

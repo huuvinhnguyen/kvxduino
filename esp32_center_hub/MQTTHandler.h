@@ -3,6 +3,7 @@
 #include <NTPClient.h>
 #include <WiFi.h>
 
+using MQTTCallback = void(*)(char*, byte*, unsigned int);
 
 struct Configuration {
 
@@ -46,6 +47,9 @@ void NTPConnect(void)
 
 
 class MQTTHandler {
+
+  private:
+    static MQTTCallback callbackFunc;
 
   public:
 
