@@ -3,11 +3,7 @@
 #include <BLEUtils.h>
 #include <BLEAdvertisedDevice.h>
 
-//using BLENotifyCallback = void(*)(int32_t);
-
 using BLENotifyCallback = void(*)(BLERemoteCharacteristic*, uint8_t*, size_t, bool);
-
-
 
 class SlaveDevice {
   private:
@@ -120,4 +116,3 @@ class SlaveDevice {
 };
 
 BLENotifyCallback SlaveDevice::notifyCallbackFunc = nullptr;
-//BLENotifyCallback2 SlaveDevice::notifyCallbackFunc2 = nullptr;

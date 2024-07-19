@@ -7,7 +7,6 @@
 #include <PubSubClient.h>
 #include <WiFiManager.h>
 #include <WiFiHandler.h>
-//#include <ESP_DoubleResetDetector.h>
 
 #include <ESPmDNS.h>
 #include "Timer.h"

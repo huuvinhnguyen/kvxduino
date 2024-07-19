@@ -1,4 +1,12 @@
 #include <WiFiManager.h>
+#include <ESP_DoubleResetDetector.h>
+DoubleResetDetector* drd;
+
+// subseqent reset will be considered a double reset.
+#define DRD_TIMEOUT 10
+
+// RTC Memory Address for the DoubleResetDetector to use
+#define DRD_ADDRESS 0
 
 class WiFiHandler {
   public:
@@ -12,14 +20,16 @@ class WiFiHandler {
       wifiManager.setBreakAfterConfig(true);
 
       //reset settings - for testing
-      //wifiManager.resetSettings();
+      if (drd->detectDoubleReset()) {
+        wifiManager.resetSettings();
+      }
 
 
       //tries to connect to last known settings
       //if it does not connect it starts an access point with the specified name
       //here  "AutoConnectAP" with password "password"
       //and goes into a blocking loop awaiting configuration
-      if (!wifiManager.autoConnect("AutoConnectAP")) {
+      if (!wifiManager.autoConnect("VIETFARMY")) {
         Serial.println("failed to connect, we should reset as see if it connects");
         delay(3000);
         ESP.restart();
