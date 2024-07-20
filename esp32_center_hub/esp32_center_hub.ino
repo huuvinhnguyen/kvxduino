@@ -195,7 +195,7 @@ void checkHeapMemory() {
 }
 
 unsigned long previousMillis = 0;
-const unsigned long maxExecutionTime = 5000;
+const unsigned long maxExecutionTime = 30000;
 
 void checkCPUOverload() {
   unsigned long currentMillis = millis();
