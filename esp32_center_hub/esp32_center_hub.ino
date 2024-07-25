@@ -43,8 +43,8 @@ void setup() {
   connector.setupBLE();
   connector.registerNotifyCallback(handleBLENotify);
   mqttHandler.registerCallback(handleMQTTCallback);
-  timeTicker.attach(5, checkHeapMemory);
-  timeTicker.attach(0.5, checkCPUOverload);
+//  timeTicker.attach(5, checkHeapMemory);
+//  timeTicker.attach(0.5, checkCPUOverload);
   Serial.println("setup");
 }
 
