@@ -65,11 +65,9 @@ DeviceInfoStack* stack = new DeviceInfoStack();
 // Callback function that gets called, when another device's advertisement has been received
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
-      Serial.println("BLEAdvertisedDeviceCallbacks--- onResult advertisedDevice");
 
       DeviceInfo deviceInfo;
       deviceInfo["name"] = advertisedDevice.getName().c_str();
-      Serial.println("onResult advertis");
       if (!deviceInfo["name"].empty()) {
         Serial.println("onResult AAAAAAAA");
         deviceInfo["address"] = advertisedDevice.getAddress().toString().c_str();

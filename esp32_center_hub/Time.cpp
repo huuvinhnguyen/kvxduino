@@ -1,7 +1,4 @@
 #include "Timer.h"
-#include <NTPClient.h>
-#include <WiFi.h>
-
 
 
 
