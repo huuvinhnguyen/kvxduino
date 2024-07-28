@@ -10,41 +10,37 @@
 #include <WiFiHandler.h>
 
 #include <ESPmDNS.h>
-#include "Timer.h"
-#include <Relay.h>
 #include <NTPClient.h>
+#include <RelayTimer.h>
+#include "time.h"
 
-WiFiUDP ntpUDP;
-const long utcOffsetInSeconds = 7 * 3600;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
 const int PIR_SENSOR_OUTPUT_PIN = 3;
 #define LED_BUILTIN 8
 
-const unsigned long RECONNECT_INTERVAL = 5000;  // 5 seconds
-
 int countDevice = 0;
-
 
 // Global objects
 BLEConnector connector;
 MQTTHandler mqttHandler;
-WatchDog watchDog;
 WiFiHandler wifiHandler;
-Relay relay;
+RelayTimer relayTimer;
 
-Ticker timeTicker;
 
 void setup() {
   Serial.begin(115200);
+
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
+
   wifiHandler.setupWiFi();
   connector.setupBLE();
   connector.registerNotifyCallback(handleBLENotify);
+  relayTimer.setup();
   mqttHandler.registerCallback(handleMQTTCallback);
-//  timeTicker.attach(5, checkHeapMemory);
-//  timeTicker.attach(0.5, checkCPUOverload);
+  //  timeTicker.attach(5, checkHeapMemory);
+  //  timeTicker.attach(0.5, checkCPUOverload);
+
   Serial.println("setup");
 }
 
@@ -63,6 +59,7 @@ void loop() {
   }
 
   connector.loopConnectBLE();
+  relayTimer.loopTriggerRelay();
 
   delay(1000);
 
@@ -71,7 +68,6 @@ void loop() {
 void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
                      uint8_t* pData, size_t length, bool isNotify) {
 
-  //  mqttHandler->publish("switchon", "okok");
 
   char str[length + 1];
   memcpy(str, pData, length);
@@ -132,16 +128,16 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
     int value = doc["value"];
-    relay.handleMessage("switch", String(value));
-    String jsonString = getStateMessage(relay);
+    relayTimer.relay.handleMessage("switch", String(value));
+    String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
   }
 
   String timeTriggerTopic = deviceId + "/timetrigger";
   if (strcmp(topic, timeTriggerTopic.c_str()) == 0) {
     String value = doc["value"];
-    watchDog.setTimeString(value);
-    String jsonString = getStateMessage(relay);
+    relayTimer.watchDog.setTimeString(value);
+    String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
 
   }
@@ -149,8 +145,8 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   String longlastTopic = deviceId + "/longlast";
   if (strcmp(topic, longlastTopic.c_str()) == 0) {
     int value = doc["value"];
-    relay.longlast = value;
-    String jsonString = getStateMessage(relay);
+    relayTimer.relay.longlast = value;
+    String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
 
   }
@@ -158,54 +154,10 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   String switchOnTopic = deviceId + "/switchon";
   if (strcmp(topic, switchOnTopic.c_str()) == 0) {
     int longlast = doc["longlast"];
-    relay.longlast = longlast;
-    relay.switchOn();
-    String jsonString = getStateMessage(relay);
+    relayTimer.relay.longlast = longlast;
+    relayTimer.relay.switchOn();
+    String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
 
   }
-
-}
-
-String getStateMessage(Relay relay) {
-
-  StaticJsonDocument<200> jsonDoc;
-  jsonDoc["device_type"] = "switch";
-  jsonDoc["device_id"] = deviceId;
-  jsonDoc["value"] = relay.value;
-  jsonDoc["update_at"] = timeClient.getEpochTime();
-  jsonDoc["longlast"] = relay.longlast;
-  jsonDoc["timetrigger"] = watchDog.getTimeString();
-  String jsonString;
-  serializeJson(jsonDoc, jsonString);
-  return jsonString;
-}
-
-const uint32_t minHeapSize = 10000;
-void checkHeapMemory() {
-  uint32_t freeHeap = esp_get_free_heap_size();
-  
-  Serial.print("Free heap size: ");
-  Serial.println(freeHeap);
-
-  if (freeHeap < minHeapSize) {
-    Serial.println("Heap memory overloaded, restarting...");
-    ESP.restart();
-  }
-}
-
-unsigned long previousMillis = 0;
-const unsigned long maxExecutionTime = 30000;
-
-void checkCPUOverload() {
-  unsigned long currentMillis = millis();
-
-  // Kiểm tra thời gian thực thi của vòng lặp chính
-  if (currentMillis - previousMillis >= maxExecutionTime) {
-    Serial.println("CPU overloaded, restarting...");
-    ESP.restart();
-  }
-  
-  // Cập nhật thời gian thực thi mới nhất
-  previousMillis = currentMillis;
 }

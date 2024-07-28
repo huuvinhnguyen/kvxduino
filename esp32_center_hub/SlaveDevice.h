@@ -1,7 +1,7 @@
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
-#include <BLEAdvertisedDevice.h>
+//#include <BLEAdvertisedDevice.h>
 
 using BLENotifyCallback = void(*)(BLERemoteCharacteristic*, uint8_t*, size_t, bool);
 
