@@ -1,6 +1,6 @@
 #include <Timer.h>
 #include <Relay.h>
-#include <NTPClient.h>
+//#include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <memory>  // For std::unique_ptr
 #include "time.h"
@@ -17,18 +17,18 @@ class RelayTimer {
     WatchDog watchDog;
     WiFiUDP ntpUDP;
     const long utcOffsetInSeconds = 7 * 3600;
-    std::unique_ptr<NTPClient> timeClient;
+    //    std::unique_ptr<NTPClient> timeClient;
 
-    RelayTimer() : timeClient(nullptr) {}
+    //    RelayTimer() : timeClient(nullptr) {}
 
-    ~RelayTimer() {
-      // Destructor to clean up resources
-    }
+    //    ~RelayTimer() {
+    //      // Destructor to clean up resources
+    //    }
 
 
     void setup() {
-      timeClient = std::make_unique<NTPClient>(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
-      timeClient->begin();
+      //      timeClient = std::make_unique<NTPClient>(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
+      //      timeClient->begin();
     }
 
     void loopTriggerRelay() {
@@ -55,12 +55,12 @@ class RelayTimer {
     }
 
     String getStateMessage(String deviceId) {
-
+      time_t now = time(nullptr);  // Get the current epoch time
       StaticJsonDocument<200> jsonDoc;
       jsonDoc["device_type"] = "switch";
       jsonDoc["device_id"] = deviceId;
       jsonDoc["value"] = relay.value;
-      jsonDoc["update_at"] = timeClient->getEpochTime();
+      jsonDoc["update_at"] = now;
       jsonDoc["longlast"] = relay.longlast;
       jsonDoc["timetrigger"] = watchDog.getTimeString();
       String jsonString;

@@ -6,13 +6,13 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiManager.h>
-#include <Ticker.h>
 #include <WiFiHandler.h>
 
 #include <ESPmDNS.h>
-#include <NTPClient.h>
 #include <RelayTimer.h>
 #include "time.h"
+#include <HTTPClient.h>
+
 
 
 const int PIR_SENSOR_OUTPUT_PIN = 3;
@@ -26,7 +26,6 @@ MQTTHandler mqttHandler;
 WiFiHandler wifiHandler;
 RelayTimer relayTimer;
 
-
 void setup() {
   Serial.begin(115200);
 
@@ -38,23 +37,27 @@ void setup() {
   connector.registerNotifyCallback(handleBLENotify);
   relayTimer.setup();
   mqttHandler.registerCallback(handleMQTTCallback);
-  //  timeTicker.attach(5, checkHeapMemory);
-  //  timeTicker.attach(0.5, checkCPUOverload);
 
   Serial.println("setup");
 }
 
 void loop() {
+  
   Serial.println("loop");
 
   if (WiFi.status() == WL_CONNECTED) {
     if (mqttHandler.connected()) {
       mqttHandler.loopConnectMQTT();
+      Serial.println("loopConnectMQTT");
+
 
     } else {
       mqttHandler.loopReconnectMQTT();
+      Serial.println("loopReconnectMQTT");
     }
   } else {
+    Serial.println("loopConnectWiFi");
+
     wifiHandler.loopConnectWiFi();
   }
 
@@ -65,36 +68,48 @@ void loop() {
 
 }
 
-void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
-                     uint8_t* pData, size_t length, bool isNotify) {
+//void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
+//                     uint8_t* pData, size_t length, bool isNotify) {
+void handleBLENotify(String jsonString) {
 
 
-  char str[length + 1];
-  memcpy(str, pData, length);
-  str[length] = '\0';
+  // In chuỗi JSON để kiểm tra
+  Serial.print("Received JSON: ");
+  Serial.println(jsonString);
 
-  // Parse the string to get temperature and humidity
-  String dhtDataString = String(str);
-  int commaIndex = dhtDataString.indexOf(',');
-  if (commaIndex > 0) {
-    String temperatureString = dhtDataString.substring(0, commaIndex);
-    String humidityString = dhtDataString.substring(commaIndex + 1);
+  // Tạo tài liệu JSON
+  StaticJsonDocument<200> jsonDoc;
 
-    float temperature = temperatureString.toFloat();
-    float humidity = humidityString.toFloat();
+  // Phân tích chuỗi JSON
+  DeserializationError error = deserializeJson(jsonDoc, jsonString);
 
-    Serial.print("Parsed Temperature: ");
-    Serial.print(temperature);
-    Serial.print(" C, Humidity: ");
-    Serial.print(humidity);
-    Serial.println(" %");
-  } else {
-    Serial.println("Failed to parse dhtDataString");
+  // Kiểm tra lỗi khi phân tích
+  if (error) {
+    Serial.print("deserializeJson() failed: ");
+    Serial.println(error.c_str());
+    return;
   }
+
+  // Trích xuất giá trị từ tài liệu JSON
+  float temperature = jsonDoc["tem"];
+  float humidity = jsonDoc["hum"];
+
+  // In giá trị ra Serial
+  Serial.print("Temperature: ");
+  Serial.println(temperature);
+  Serial.print("Humidity: ");
+  Serial.println(humidity);
+  jsonDoc["hub_model"] = "esp32"; 
+  String payload;
+  serializeJson(jsonDoc, payload);
+  String topic = "dht" ;
+  mqttHandler.publish(topic.c_str(), jsonString.c_str(), false);
 
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
+  sendSlackMessage();
+
   payload[length] = '\0';
 
   // Khởi tạo một bộ đệm để chứa payload
@@ -159,5 +174,49 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
 
+  }
+}
+
+
+void sendSlackMessage() {
+
+  uint32_t chipId = 0;
+  for (int i = 0; i < 17; i = i + 8) {
+    chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+  }
+  const char* webhookUrl = "http://103.9.77.155/devices/notify";
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+
+    http.begin(webhookUrl);
+    http.addHeader("Content-Type", "application/json");
+
+    // Tạo đối tượng JSON
+    time_t now = time(nullptr);
+    DynamicJsonDocument jsonDoc(256);
+    jsonDoc["id"] = chipId;
+    jsonDoc["message"] = "Hello from esp32";
+    jsonDoc["time"] = now;
+    jsonDoc["model"] = "esp32";
+
+
+    // Chuyển đổi đối tượng JSON thành chuỗi
+    String payload;
+    serializeJson(jsonDoc, payload);
+
+    int httpResponseCode = http.POST(payload);
+
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      Serial.println("HTTP Response Code: " + String(httpResponseCode));
+      Serial.println("Response: " + response);
+    } else {
+      Serial.println("Error code: " + String(httpResponseCode));
+    }
+
+    http.end();
+  } else {
+    Serial.println("Error in WiFi connection");
   }
 }

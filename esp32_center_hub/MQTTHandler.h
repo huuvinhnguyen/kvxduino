@@ -1,6 +1,5 @@
 #include <PubSubClient.h>
 #include <WiFiClient.h>
-#include <NTPClient.h>
 #include <WiFi.h>
 
 //using MQTTCallback = void(*)(char*, byte*, unsigned int);
@@ -25,22 +24,24 @@ String deviceId = "kv_123456";
 
 WiFiClient net;
 PubSubClient client(net);
-#define TIME_ZONE 7
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 7 * 3600;
+const int   daylightOffset_sec = 0 ;
+
 time_t now;
 time_t nowish = 1510592825;
 
-void NTPConnect(void)
-{
+void NTPConnect(void) {
   Serial.print("Setting time using SNTP");
-  configTime(TIME_ZONE * 3600, 0, "pool.ntp.org", "time.nist.gov"); // Đã chỉnh lại cho timezone +7
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   now = time(nullptr);
-  while (now < nowish)
-  {
+  while (now < nowish) {
     delay(500);
     Serial.print(".");
     now = time(nullptr);
   }
+
   Serial.println("done!");
   struct tm timeinfo;
   gmtime_r(&now, &timeinfo);
@@ -102,6 +103,14 @@ class MQTTHandler {
       }
     }
 
+    uint32_t getChipId() {
+      uint32_t chipId = 0;
+      for (int i = 0; i < 17; i = i + 8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+      }
+      return chipId;
+    }
+
     void connectMQTT() {
 
       if (client.connected()) {
@@ -121,20 +130,15 @@ class MQTTHandler {
 
       Serial.println("Connecting to MQTT...");
 
+      uint32_t chipId = getChipId();
+      String clientId = String(chipId);
 
-      if (client.connect(deviceId.c_str())) {
+      if (client.connect(clientId.c_str())) {
 
         Serial.println("connected");
         String switchTopic = deviceId + "/switch";
         client.subscribe(switchTopic.c_str(), 1);
-        //    StaticJsonDocument<200> jsonDoc;
-        //    jsonDoc["value"] = relay.value;
-        //    String jsonString;
-        //    serializeJson(jsonDoc, jsonString);
-        //    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-        //
 
-        //        relay.setup("");
         String switchonTopic = deviceId + "/switchon";
         client.subscribe(switchonTopic.c_str(), 1);
 
@@ -155,10 +159,10 @@ class MQTTHandler {
       }
     }
 
-    void publish(const char* topic, const char* message) {
+    void publish(const char* topic, const char* message, bool isRetained) {
       String switchonTopic = deviceId + "/" + topic;
       if (client.connected()) {
-        client.publish(switchonTopic.c_str(), message);
+        client.publish(switchonTopic.c_str(), message, isRetained);
         Serial.print("Message published to topic: ");
         Serial.print(switchonTopic);
         Serial.print(" Message: ");

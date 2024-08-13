@@ -80,8 +80,9 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     }
 };
 
-typedef void (*BLENotifyCallback)(BLERemoteCharacteristic* pBLERemoteCharacteristic,
-                                  uint8_t* pData, size_t length, bool isNotify);
+//typedef void (*BLENotifyCallback)(BLERemoteCharacteristic* pBLERemoteCharacteristic,
+//                                  uint8_t* pData, size_t length, bool isNotify);
+typedef void (*BLENotifyCallback)(String jsonString);
 
 class BLEConnector {
   private:
@@ -91,7 +92,7 @@ class BLEConnector {
     unsigned long scanStartTime = 0;
 
     SlaveDevice slaveDevices[3] = {
-      SlaveDevice("91bad492-b950-4226-aa2b-4ede9fa42f59", "2c3f30b8-1fa1-4d63-8c19-f50a3a7a2ec8", "ESP32_BME280"),
+      SlaveDevice("91bad492-b950-4226-aa2b-4ede9fa42f59", "2c3f30b8-1fa1-4d63-8c19-f50a3a7a2ec8", "ESP32_DHT"),
       SlaveDevice("11bad492-b950-4226-aa2b-4ede9fa42f55", "333f30b8-1fa1-4d63-8c19-f50a3a7a2ef9", "ESP32_PIR"),
       SlaveDevice("11bad492-b950-4226-aa2b-4ede9fa42f51", "333f30b8-1fa1-4d63-8c19-f50a3a7a2ef6", "ESP32_PIR2"),
     };
@@ -115,7 +116,7 @@ class BLEConnector {
 
         if (scanning) { // Kiểm tra xem việc quét có đang diễn ra không
           Serial.println("noscanning...");
-          // Kiểm tra nếu đã qua 30 giây từ khi bắt đầu quét
+          // Kiểm tra nếu đã qua 15 giây từ khi bắt đầu quét
           if (now - scanStartTime > 30000) {
             scanning = false;
             scanStartTime = 0;
@@ -173,19 +174,22 @@ class BLEConnector {
         dev2->doConnect = true;
       }
 
-      if(dev2->bleClient->isConnected()) { return;}
+      if (dev2->bleClient->isConnected()) {
+        stack->popDevice();
+        return;
+      }
 
       if (dev2->doConnect) {
         Serial.println("Do connecting ble");
         if (dev2->connect()) {
- 
+
           Serial.println("We are now connected to the BLE Server.");
           //          dev.remoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
         } else {
           Serial.println("We have failed to connect to the server; Restart your device to scan for nearby BLE server again.");
 
         }
-        
+
         Serial.println("pop device");
         stack->popDevice();
         dev2->doConnect = false;

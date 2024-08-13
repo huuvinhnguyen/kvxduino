@@ -17,12 +17,12 @@ const int PIR_SENSOR_OUTPUT_PIN = 3;
 BLEServer *pServer;
 
 //BLE server name
-#define bleServerName "ESP32_BME280"
+#define bleServerName "ESP32_PIR"
 // Default UUID for Environmental Sensing Service
 // https://www.bluetooth.com/specifications/assigned-numbers/
-static BLEUUID bmeServiceUUID("91bad492-b950-4226-aa2b-4ede9fa42f59");
+static BLEUUID bmeServiceUUID("11bad492-b950-4226-aa2b-4ede9fa42f55");
 
-static BLEUUID pressureCharacteristicUUID("2c3f30b8-1fa1-4d63-8c19-f50a3a7a2ec8");
+static BLEUUID pressureCharacteristicUUID("333f30b8-1fa1-4d63-8c19-f50a3a7a2ef9");
 
 // Pressure Characteristic and Descriptor
 BLECharacteristic pressureCharacteristic(pressureCharacteristicUUID, BLECharacteristic::PROPERTY_NOTIFY);

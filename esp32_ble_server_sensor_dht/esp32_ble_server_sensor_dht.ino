@@ -1,16 +1,10 @@
-/*
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com/esp32-ble-server-environmental-sensing-service/
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files.
-  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-*/
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <DHT.h>
+#include <ArduinoJson.h>
 
-const int PIR_SENSOR_OUTPUT_PIN = 3;
 #define DHTPIN 3     // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT11 // DHT 11
 
@@ -22,16 +16,16 @@ DHT dht(DHTPIN, DHTTYPE);
 BLEServer *pServer;
 
 //BLE server name
-#define bleServerName "ESP32_BME280"
+#define bleServerName "ESP32_DHT"
 // Default UUID for Environmental Sensing Service
 // https://www.bluetooth.com/specifications/assigned-numbers/
 static BLEUUID bmeServiceUUID("91bad492-b950-4226-aa2b-4ede9fa42f59");
 
-static BLEUUID pressureCharacteristicUUID("2c3f30b8-1fa1-4d63-8c19-f50a3a7a2ec8");
+static BLEUUID characteristicUUID("2c3f30b8-1fa1-4d63-8c19-f50a3a7a2ec8");
 
 // Pressure Characteristic and Descriptor
-BLECharacteristic pressureCharacteristic(pressureCharacteristicUUID, BLECharacteristic::PROPERTY_NOTIFY);
-BLEDescriptor pressureDescriptor(BLEUUID((uint16_t)0x2902));
+BLECharacteristic characteristic(characteristicUUID, BLECharacteristic::PROPERTY_NOTIFY);
+BLEDescriptor descriptor(BLEUUID((uint16_t)0x2902));
 
 bool deviceConnected = false;
 
@@ -40,6 +34,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
       Serial.println("Device Connected");
+      pServer->startAdvertising();
+
     };
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
@@ -63,8 +59,8 @@ void setupBLE() {
   // Create the BLE Service
   BLEService *bmeService = pServer->createService(bmeServiceUUID);
 
-  bmeService->addCharacteristic(&pressureCharacteristic);
-  pressureCharacteristic.addDescriptor(&pressureDescriptor);
+  bmeService->addCharacteristic(&characteristic);
+  characteristic.addDescriptor(&descriptor);
   // Start the service
   bmeService->start();
   // Start advertising
@@ -73,7 +69,14 @@ void setupBLE() {
 }
 
 #define uS_TO_S_FACTOR 1000000ULL /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  5          /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP  2          /* Time ESP32 will go to sleep (in seconds) */
+uint32_t getChipId() {
+  uint32_t chipId = 0;
+  for (int i = 0; i < 17; i = i + 8) {
+    chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+  }
+  return chipId;
+}
 
 void setup() {
   // Start serial communication
@@ -83,26 +86,24 @@ void setup() {
   setupDHT();
 
   // Configure the ESP32 to wake up using a timer after TIME_TO_SLEEP seconds
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  //  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 }
 
 void loop() {
   if (deviceConnected) {
     loopDHT();
-
   } else {
     // If not connected, keep advertising and wait for a connection
     delay(1000); // Wait for a connection
   }
 }
 
-void loopDHT() {
-  // Wait a few seconds between measurements.
 
+
+void loopDHT() {
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
   float h = dht.readHumidity();
-  // Read temperature as Celsius (the default)
   float t = dht.readTemperature();
 
   // Check if any reads failed and exit early (to try again).
@@ -111,17 +112,37 @@ void loopDHT() {
     return;
   }
 
-  Serial.println(F("Humidity: "));
+  uint32_t chipId = getChipId();
+
+  Serial.print(F("Humidity: "));
   Serial.print(h);
   Serial.print(F("%  Temperature: "));
-  Serial.print(t);
+  Serial.println(t);
 
-  char dhtDataString[32];
-  snprintf(dhtDataString, sizeof(dhtDataString), "{\"temperature\":%.2f,\"humidity\":%.2f}", t, h);
-  Serial.println(dhtDataString);
-  pressureCharacteristic.setValue(dhtDataString);
-  pressureCharacteristic.notify();
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["id"] = chipId;
+  jsonDoc["sen"] = "dht11";
+  jsonDoc["tem"] = t;
+  jsonDoc["hum"] = h;
+  String jsonString;
+  serializeJson(jsonDoc, jsonString);
+
+  if (deviceConnected) {
+    // Split the JSON string into smaller chunks if necessary
+    size_t chunkSize = 20;  // BLE notification size limit
+    for (size_t i = 0; i < jsonString.length(); i += chunkSize) {
+      String chunk = jsonString.substring(i, min(i + chunkSize, jsonString.length()));
+      characteristic.setValue(chunk.c_str());
+      characteristic.notify();
+      delay(10);  // Short delay to avoid overloading the BLE stack
+    }
+    Serial.println("Notification sent: " + jsonString);
+
+  } else {
+    Serial.println("Device not connected, data not sent.");
+  }
+
   delay(1000);
-  esp_deep_sleep_start();
+  //  esp_light_sleep_start();
 
 }

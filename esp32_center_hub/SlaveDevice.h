@@ -3,7 +3,9 @@
 #include <BLEUtils.h>
 //#include <BLEAdvertisedDevice.h>
 
-using BLENotifyCallback = void(*)(BLERemoteCharacteristic*, uint8_t*, size_t, bool);
+//using BLENotifyCallback = void(*)(BLERemoteCharacteristic*, uint8_t*, size_t, bool);
+using BLENotifyCallback = void(*)(String jsonString);
+
 
 // Client callbacks
 class MyClientCallbacks : public BLEClientCallbacks {
@@ -21,6 +23,7 @@ class SlaveDevice {
     static BLENotifyCallback notifyCallbackFunc;
     BLERemoteCharacteristic* remoteCharacteristic;
 
+
   public:
     BLEAdvertisedDevice* advertisedDevice;
     BLEAddress* pServerAddress = nullptr;
@@ -32,15 +35,44 @@ class SlaveDevice {
     std::string deviceName;
 
     unsigned long lastAttemptTime = 0;
+    static String receivedData;// To store the received fragments
+
 
     SlaveDevice(std::string serviceUUID, std::string charUUID, std::string charName)
       : serviceUUID(serviceUUID), characteristicUUID(charUUID), bleClient(nullptr), lastAttemptTime(0), deviceName(charName) {}
 
     static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic,
                                uint8_t* pData, size_t length, bool isNotify) {
-      if (notifyCallbackFunc && isNotify) {
-        notifyCallbackFunc(pBLERemoteCharacteristic, pData, length, isNotify);
+
+      String fragment = String((char*)pData).substring(0, length);
+      receivedData += fragment;
+      Serial.println("fragment: ");
+      Serial.println(fragment);
+      if (receivedData.endsWith("}")) {  // Assuming JSON data always ends with '}'
+
+        StaticJsonDocument<200> jsonDoc;
+        DeserializationError error = deserializeJson(jsonDoc, receivedData);
+
+        if (error) {
+          Serial.print(F("deserializeJson() failed: "));
+          Serial.println(error.c_str());
+        } else {
+          uint32_t chipId = jsonDoc["id"];
+          const char* sensor = jsonDoc["sen"];
+          float temperature = jsonDoc["tem"];
+          float humidity = jsonDoc["hum"];
+
+        }
+
+        if (notifyCallbackFunc && isNotify) {
+          //        notifyCallbackFunc(pBLERemoteCharacteristic, pData, length, isNotify);
+          notifyCallbackFunc(receivedData);
+        }
+
+        receivedData = "";  // Clear the buffer after processing
       }
+
+
     }
 
     bool connect() {
@@ -54,7 +86,7 @@ class SlaveDevice {
         Serial.println("pServerAddress is null");
         return false;
       }
-      
+
       bleClient->disconnect();
       delay(1000);
       if (!bleClient->connect(*pServerAddress)) {
@@ -112,4 +144,5 @@ class SlaveDevice {
     }
 };
 
+String SlaveDevice::receivedData = "";
 BLENotifyCallback SlaveDevice::notifyCallbackFunc = nullptr;
