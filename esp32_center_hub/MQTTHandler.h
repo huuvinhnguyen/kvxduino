@@ -1,6 +1,7 @@
 #include <PubSubClient.h>
 #include <WiFiClient.h>
 #include <WiFi.h>
+#include "app.h"
 
 //using MQTTCallback = void(*)(char*, byte*, unsigned int);
 using MQTTCallback = void(*)(char* topic, byte* payload, unsigned int length);
@@ -19,7 +20,7 @@ struct Configuration {
 } configuration;
 
 const char MQTT_HOST[] = "103.9.77.155";
-String deviceId = "kv_123456";
+String deviceId = String(App::getChipId(), 10);
 
 
 WiFiClient net;
@@ -136,6 +137,10 @@ class MQTTHandler {
       if (client.connect(clientId.c_str())) {
 
         Serial.println("connected");
+        App::sendSlackMessage();
+        String jsonString = getInitialMessage(deviceId);
+        client.publish(deviceId.c_str(), jsonString.c_str(), true);
+        
         String switchTopic = deviceId + "/switch";
         client.subscribe(switchTopic.c_str(), 1);
 
@@ -170,6 +175,17 @@ class MQTTHandler {
       } else {
         Serial.println("Client not connected, message not published");
       }
+    }
+
+    String getInitialMessage(String deviceId) {
+      time_t now = time(nullptr);  // Get the current epoch time
+      StaticJsonDocument<200> jsonDoc;
+      jsonDoc["device_type"] = "initial";
+      jsonDoc["device_id"] = deviceId;
+      jsonDoc["update_at"] = now;
+      String jsonString;
+      serializeJson(jsonDoc, jsonString);
+      return jsonString;
     }
 
     static void callback(char* topic, byte* payload, unsigned int length) {
