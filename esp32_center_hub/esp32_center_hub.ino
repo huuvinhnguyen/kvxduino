@@ -11,7 +11,6 @@
 #include <ESPmDNS.h>
 #include <RelayTimer.h>
 #include "time.h"
-#include <HTTPClient.h>
 
 
 
@@ -108,7 +107,7 @@ void handleBLENotify(String jsonString) {
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
-  sendSlackMessage();
+  App::sendSlackMessage();
 
   payload[length] = '\0';
 
@@ -144,8 +143,6 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
     int value = doc["value"];
     relayTimer.relay.handleMessage("switch", String(value));
-    String jsonString = relayTimer.getStateMessage(deviceId);
-    client.publish(deviceId.c_str(), jsonString.c_str(), true);
   }
 
   String timeTriggerTopic = deviceId + "/timetrigger";
@@ -154,7 +151,6 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     relayTimer.watchDog.setTimeString(value);
     String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
-
   }
 
   String longlastTopic = deviceId + "/longlast";
@@ -163,7 +159,6 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     relayTimer.relay.longlast = value;
     String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
-
   }
 
   String switchOnTopic = deviceId + "/switchon";
@@ -173,50 +168,6 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     relayTimer.relay.switchOn();
     String jsonString = relayTimer.getStateMessage(deviceId);
     client.publish(deviceId.c_str(), jsonString.c_str(), true);
-
   }
-}
 
-
-void sendSlackMessage() {
-
-  uint32_t chipId = 0;
-  for (int i = 0; i < 17; i = i + 8) {
-    chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-  }
-  const char* webhookUrl = "http://103.9.77.155/devices/notify";
-
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-
-    http.begin(webhookUrl);
-    http.addHeader("Content-Type", "application/json");
-
-    // Tạo đối tượng JSON
-    time_t now = time(nullptr);
-    DynamicJsonDocument jsonDoc(256);
-    jsonDoc["id"] = chipId;
-    jsonDoc["message"] = "Hello from esp32";
-    jsonDoc["time"] = now;
-    jsonDoc["model"] = "esp32";
-
-
-    // Chuyển đổi đối tượng JSON thành chuỗi
-    String payload;
-    serializeJson(jsonDoc, payload);
-
-    int httpResponseCode = http.POST(payload);
-
-    if (httpResponseCode > 0) {
-      String response = http.getString();
-      Serial.println("HTTP Response Code: " + String(httpResponseCode));
-      Serial.println("Response: " + response);
-    } else {
-      Serial.println("Error code: " + String(httpResponseCode));
-    }
-
-    http.end();
-  } else {
-    Serial.println("Error in WiFi connection");
-  }
 }

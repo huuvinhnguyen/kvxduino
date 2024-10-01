@@ -29,6 +29,7 @@ class RelayTimer {
     void setup() {
       //      timeClient = std::make_unique<NTPClient>(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
       //      timeClient->begin();
+      relay.setup("");
     }
 
     void loopTriggerRelay() {
