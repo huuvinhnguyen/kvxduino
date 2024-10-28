@@ -336,6 +336,7 @@ class Fingerprint {
       // found a match!
       Serial.print("Found ID #"); Serial.print(finger.fingerID);
       Serial.print(" with confidence of "); Serial.println(finger.confidence);
+      App::checkin(finger.fingerID);
 
       return finger.fingerID;
     }
