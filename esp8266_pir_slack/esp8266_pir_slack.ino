@@ -7,6 +7,10 @@
 #include <ArduinoJson.h>
 #include "WiFiHandler.h"
 #include "time.h"
+#include "RelayTimer.h"
+#include "MQTTHandler.h"
+#include "App.h"
+
 
 ESP8266WebServer server(80);
 
@@ -14,58 +18,64 @@ const uint8_t pinPir2 = D7;
 int val;
 
 WiFiHandler wifiHandler;
+RelayTimer relayTimer;
+MQTTHandler mqttHandler;
 
+//
+//struct Configuration {
+//
+//  char mqttServer[30];
+//  char mqttUser[30];
+//  char mqttPassword[30];
+//  int mqttPort = 14985;
+//  char mqttpath[30];
+//  char wifiSSID[30];
+//  char wifiPassword[30];
+//
+//} configuration;
 
-struct Configuration {
-
-  char mqttServer[30];
-  char mqttUser[30];
-  char mqttPassword[30];
-  int mqttPort = 14985;
-  char mqttpath[30];
-  char wifiSSID[30];
-  char wifiPassword[30];
-
-} configuration;
-
-WiFiClient espClient;
-PubSubClient client(espClient);
+//WiFiClient espClient;
+//PubSubClient client(espClient);
 
 uint8_t ledPin = 17;
 
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 7 * 3600;
-const int   daylightOffset_sec = 0 ;
+//const char* ntpServer = "pool.ntp.org";
+//const long  gmtOffset_sec = 7 * 3600;
+//const int   daylightOffset_sec = 0 ;
 
 void setup() {
 
   Serial.begin(115200);
   pinMode(pinPir2, INPUT);
-//  pinMode(pinPir2, INPUT);
+  //  pinMode(pinPir2, INPUT);
 
-//      setupPir();
-//
-//  pinMode(pirPin2, INPUT);
+  //      setupPir();
+  //
+  //  pinMode(pirPin2, INPUT);
 
   wifiHandler.setupWiFi();
+  relayTimer.setup();
+  mqttHandler.registerCallback(handleMQTTCallback);
 
 }
 
 
 void loop() {
 
-  MDNS.update();
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  //  MDNS.update();
+  //  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   if (WiFi.status() == WL_CONNECTED) {
+    if (mqttHandler.connected()) {
+      mqttHandler.loopConnectMQTT();
+      Serial.println("loopConnectMQTT");
 
-    if (client.connected()) {
 
-      client.loop();
     } else {
-
-      checkPir();
+      mqttHandler.loopReconnectMQTT();
+      Serial.println("loopReconnectMQTT");
     }
+
   } else {
 
     Serial.println("loopConnectWiFi");
@@ -73,9 +83,10 @@ void loop() {
   }
 
   server.handleClient();
+  relayTimer.loopTriggerRelay();
   delay(1000);
 
- 
+
 }
 
 unsigned long lastNotificationTime = 0;
@@ -139,4 +150,70 @@ void sendSlackMessage() {
   } else {
     Serial.println("Error in WiFi connection");
   }
+}
+
+void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
+  App::sendSlackMessage();
+
+  payload[length] = '\0';
+
+  // Khởi tạo một bộ đệm để chứa payload
+  char buffer[length + 1];
+  memcpy(buffer, payload, length + 1);
+
+  // Khởi tạo một object JSON và parse payload
+  StaticJsonDocument<200> doc;
+  DeserializationError error = deserializeJson(doc, buffer);
+
+  // Kiểm tra lỗi parse
+  if (error) {
+    Serial.print("Failed to parse JSON: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  // Truy cập các trường trong object JSON
+  const char* message = doc["message"];
+  Serial.print("Received message: ");
+  Serial.print(message);
+
+
+  Serial.print("Message arrived in topic: ");
+  Serial.println(topic);
+
+  Serial.print("Message:");
+  char *charArray = (char*)payload;
+  String str = (String)charArray;
+  Serial.print(str);
+
+  if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
+    int value = doc["value"];
+    relayTimer.relay.handleMessage("switch", String(value));
+  }
+
+  String timeTriggerTopic = deviceId + "/timetrigger";
+  if (strcmp(topic, timeTriggerTopic.c_str()) == 0) {
+    String value = doc["value"];
+    relayTimer.watchDog.setTimeString(value);
+    String jsonString = relayTimer.getStateMessage(deviceId);
+    client.publish(deviceId.c_str(), jsonString.c_str(), true);
+  }
+
+  String longlastTopic = deviceId + "/longlast";
+  if (strcmp(topic, longlastTopic.c_str()) == 0) {
+    int value = doc["value"];
+    relayTimer.relay.longlast = value;
+    String jsonString = relayTimer.getStateMessage(deviceId);
+    client.publish(deviceId.c_str(), jsonString.c_str(), true);
+  }
+
+  String switchOnTopic = deviceId + "/switchon";
+  if (strcmp(topic, switchOnTopic.c_str()) == 0) {
+    int longlast = doc["longlast"];
+    relayTimer.relay.longlast = longlast;
+    relayTimer.relay.switchOn();
+    String jsonString = relayTimer.getStateMessage(deviceId);
+    client.publish(deviceId.c_str(), jsonString.c_str(), true);
+  }
+
 }
