@@ -20,11 +20,8 @@ struct Configuration {
 } configuration;
 
 const char MQTT_HOST[] = "103.9.77.155";
-String deviceId = String(ESP.getChipId());
 
 
-WiFiClient net;
-PubSubClient client(net);
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 7 * 3600;
 const int   daylightOffset_sec = 0 ;
@@ -54,6 +51,8 @@ void NTPConnect(void) {
 class MQTTHandler {
 
   private:
+    WiFiClient net;
+    PubSubClient client;
     static MQTTCallback callbackFunc;
     String generateRandomUUID() {
       // Generate random parts for the UUID (32-bit chunks)
@@ -73,7 +72,8 @@ class MQTTHandler {
     }
 
   public:
-
+    String deviceId = String(ESP.getChipId());
+    MQTTHandler() : net(), client(net) {} // Khởi tạo PubSubClient với WiFiClient
     long lastReconnectMQTTAttempt = 0;
 
     void registerCallback(MQTTCallback callback) {
@@ -96,14 +96,6 @@ class MQTTHandler {
     bool isFirstConnection = true;
     void loopReconnectMQTT() {
       uint32_t chipId = ESP.getChipId();
-      //      for (int i = 0; i < 17; i = i + 8) {
-      //        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-      //      }
-
-      //      Serial.printf("ESP32 Chip model = %s Rev %d\n", ESP.getChipModel(), ESP.getChipRevision());
-      //      Serial.printf("This chip has %d cores\n", ESP.getChipCores());
-      //      Serial.print("Chip ID: ");
-      //      Serial.println(chipId);
 
       Serial.println("reconnecting Mqtt");
 
@@ -173,6 +165,9 @@ class MQTTHandler {
         String longlast = deviceId + "/longlast";
         client.subscribe(longlast.c_str(), 1);
 
+        String ping = deviceId + "/ping";
+        client.subscribe(ping.c_str(), 1);
+
       } else {
 
         Serial.print("failed with state ");
@@ -181,11 +176,11 @@ class MQTTHandler {
     }
 
     void publish(const char* topic, const char* message, bool isRetained) {
-      String switchonTopic = deviceId + "/" + topic;
+      //      String switchonTopic = deviceId + "/" + topic;
       if (client.connected()) {
-        client.publish(switchonTopic.c_str(), message, isRetained);
+        client.publish(topic, message, isRetained);
         Serial.print("Message published to topic: ");
-        Serial.print(switchonTopic);
+        Serial.print(topic);
         Serial.print(" Message: ");
         Serial.println(message);
       } else {

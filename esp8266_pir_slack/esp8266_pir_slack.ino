@@ -59,17 +59,13 @@ void setup() {
 
 }
 
-
 void loop() {
 
-  //  MDNS.update();
-  //  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   if (WiFi.status() == WL_CONNECTED) {
     if (mqttHandler.connected()) {
       mqttHandler.loopConnectMQTT();
       Serial.println("loopConnectMQTT");
-
 
     } else {
       mqttHandler.loopReconnectMQTT();
@@ -83,7 +79,7 @@ void loop() {
   }
 
   server.handleClient();
-  relayTimer.loopTriggerRelay();
+  relayTimer.loop();
   delay(1000);
 
 
@@ -153,7 +149,6 @@ void sendSlackMessage() {
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
-  App::sendSlackMessage();
 
   payload[length] = '\0';
 
@@ -186,34 +181,52 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   String str = (String)charArray;
   Serial.print(str);
 
-  if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
-    int value = doc["value"];
-    relayTimer.relay.handleMessage("switch", String(value));
+  String deviceId = mqttHandler.deviceId;
+
+  String rootTopic = deviceId;
+  if (strcmp(topic, rootTopic.c_str()) == 0) {
+    String timeStart = doc["reminder"]["time_start"];
+    int duration = doc["reminder"]["duration"];
+    String repeatType = doc["reminder"]["repeat_type"];
+    relayTimer.setReminder(timeStart, duration, repeatType);
+
   }
 
-  String timeTriggerTopic = deviceId + "/timetrigger";
-  if (strcmp(topic, timeTriggerTopic.c_str()) == 0) {
-    String value = doc["value"];
-    relayTimer.watchDog.setTimeString(value);
-    String jsonString = relayTimer.getStateMessage(deviceId);
-    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-  }
+  String pingTopic = deviceId + "/ping";
+  if (strcmp(topic, pingTopic.c_str()) == 0) {
+    String messageString = relayTimer.getStateMessage(deviceId, "ping");
+    mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
 
-  String longlastTopic = deviceId + "/longlast";
-  if (strcmp(topic, longlastTopic.c_str()) == 0) {
-    int value = doc["value"];
-    relayTimer.relay.longlast = value;
-    String jsonString = relayTimer.getStateMessage(deviceId);
-    client.publish(deviceId.c_str(), jsonString.c_str(), true);
   }
 
   String switchOnTopic = deviceId + "/switchon";
   if (strcmp(topic, switchOnTopic.c_str()) == 0) {
-    int longlast = doc["longlast"];
-    relayTimer.relay.longlast = longlast;
-    relayTimer.relay.switchOn();
-    String jsonString = relayTimer.getStateMessage(deviceId);
-    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-  }
+    if (doc.containsKey("longlast")) {
+      int longlast = doc["longlast"];
+      relayTimer.setSwitchOnLast(longlast);
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      App::sendSlackMessage();
 
+    }
+
+    if (doc.containsKey("switch_value")) {
+      bool isOn = doc["switch_value"];
+      relayTimer.setOn(isOn);
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      App::sendSlackMessage();
+
+    }
+
+    if (doc.containsKey("reminder")) {
+      String timeStart = doc["reminder"]["time_start"];
+      int duration = doc["reminder"]["duration"];
+      String repeatType = doc["reminder"]["repeat_type"];
+      relayTimer.setReminder(timeStart, duration, repeatType);
+
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+    }
+  }
 }
