@@ -14,7 +14,7 @@ class RelayTimer {
     const long  gmtOffset_sec = 7 * 3600;
     const int   daylightOffset_sec = 0 ;
 
-    String reminderTimeStart;
+    String reminderStartTime;
     int reminderDuration;
     String reminderRepeatType;
 
@@ -57,13 +57,6 @@ class RelayTimer {
 
 
     const long utcOffsetInSeconds = 7 * 3600;
-    //    std::unique_ptr<NTPClient> timeClient;
-
-    //    RelayTimer() : timeClient(nullptr) {}
-
-    //    ~RelayTimer() {
-    //      // Destructor to clean up resources
-    //    }
 
 
     void setup() {
@@ -85,7 +78,7 @@ class RelayTimer {
       //      Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 
       //      bool isActive = watchDog.isAlarmAtTime(timeinfo.tm_hour, timeinfo.tm_min);
-      bool isActive = isReminderMatched(reminderTimeStart, reminderRepeatType);
+      bool isActive = isReminderMatched(reminderStartTime, reminderRepeatType);
 
       if (isActive) {
         Serial.println("Activate relay");
@@ -94,7 +87,7 @@ class RelayTimer {
           Serial.print(reminderDuration);
           setSwitchOnLast(reminderDuration);
         } else {
-          relay.switchOn();
+          relay.setOn(true);
 
         }
       }
@@ -104,8 +97,8 @@ class RelayTimer {
       });
     }
 
-    void setReminder(String timeStart, int duration, String repeatType) {
-      reminderTimeStart = timeStart;
+    void setReminder(String startTime, int duration, String repeatType) {
+      reminderStartTime = startTime;
       reminderDuration = duration;
       reminderRepeatType = repeatType;
     }
@@ -121,7 +114,7 @@ class RelayTimer {
       jsonDoc["longlast"] = relay.longlast;
       jsonDoc["timetrigger"] = watchDog.getTimeString();
       JsonObject reminder = jsonDoc.createNestedObject("reminder");
-      reminder["time_start"] = reminderTimeStart;
+      reminder["start_time"] = reminderStartTime;
       reminder["duration"] = reminderDuration;
       reminder["repeat_type"] = reminderRepeatType;
       String jsonString;
@@ -139,8 +132,22 @@ class RelayTimer {
     }
 
     bool isReminderMatched(String timestamp, String stringRepeatType) {
+
+      Serial.println("timestamp1");
+      Serial.println(timestamp.c_str());
+
+
       int year, month, day, hour, minute, second;
-      sscanf(timestamp.c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
+      // Nếu timestamp có định dạng "YYYY-MM-DDTHH:MM", chuyển đổi để bao gồm giây mặc định là 0
+      if (timestamp.length() == 16) {  // Nếu chuỗi là "YYYY-MM-DDTHH:MM"
+        timestamp += ":00";          // Thêm giây = 0 vào cuối chuỗi
+      }
+
+      // Phân tích chuỗi timestamp
+      sscanf(timestamp.c_str(), "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &minute, &second);
+      Serial.println("timestamp2");
+      Serial.println(timestamp.c_str());
+
       RepeatType repeatType;
 
       // Xác định kiểu lặp

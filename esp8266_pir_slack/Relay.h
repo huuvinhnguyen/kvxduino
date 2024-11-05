@@ -3,7 +3,7 @@
 class Relay {
   private:
     using callbackFunc = void (*) (int);
-    uint8_t relayPins[1] = {21};
+    uint8_t relayPins[2] = {D4, D5};
     bool isSetOnLastingActive = false;
     long startAttempedTime = 0;
     String path;

@@ -185,7 +185,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   String rootTopic = deviceId;
   if (strcmp(topic, rootTopic.c_str()) == 0) {
-    String timeStart = doc["reminder"]["time_start"];
+    String timeStart = doc["reminder"]["start_time"];
     int duration = doc["reminder"]["duration"];
     String repeatType = doc["reminder"]["repeat_type"];
     relayTimer.setReminder(timeStart, duration, repeatType);
@@ -220,10 +220,10 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     }
 
     if (doc.containsKey("reminder")) {
-      String timeStart = doc["reminder"]["time_start"];
+      String startTime = doc["reminder"]["start_time"];
       int duration = doc["reminder"]["duration"];
       String repeatType = doc["reminder"]["repeat_type"];
-      relayTimer.setReminder(timeStart, duration, repeatType);
+      relayTimer.setReminder(startTime, duration, repeatType);
 
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
       mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
