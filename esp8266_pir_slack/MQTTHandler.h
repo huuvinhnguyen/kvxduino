@@ -147,7 +147,7 @@ class MQTTHandler {
 
         Serial.println("connected");
         String jsonString = getInitialMessage(deviceId);
-        client.publish(deviceId.c_str(), jsonString.c_str(), true);
+        client.publish(deviceId.c_str(), jsonString.c_str(), false);
 
         String switchTopic = deviceId + "/switch";
         client.subscribe(switchTopic.c_str(), 1);
