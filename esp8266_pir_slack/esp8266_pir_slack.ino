@@ -39,19 +39,11 @@ MQTTHandler mqttHandler;
 
 uint8_t ledPin = 17;
 
-//const char* ntpServer = "pool.ntp.org";
-//const long  gmtOffset_sec = 7 * 3600;
-//const int   daylightOffset_sec = 0 ;
 
 void setup() {
 
   Serial.begin(115200);
   pinMode(pinPir2, INPUT);
-  //  pinMode(pinPir2, INPUT);
-
-  //      setupPir();
-  //
-  //  pinMode(pirPin2, INPUT);
 
   wifiHandler.setupWiFi();
   relayTimer.setup();
@@ -61,27 +53,11 @@ void setup() {
 
 void loop() {
 
-
-  if (WiFi.status() == WL_CONNECTED) {
-    if (mqttHandler.connected()) {
-      mqttHandler.loopConnectMQTT();
-      Serial.println("loopConnectMQTT");
-
-    } else {
-      mqttHandler.loopReconnectMQTT();
-      Serial.println("loopReconnectMQTT");
-    }
-
-  } else {
-
-    Serial.println("loopConnectWiFi");
-    wifiHandler.loopConnectWiFi();
-  }
-
+  wifiHandler.loopConnectWiFi();
+  mqttHandler.loopConnectMQTT();
   server.handleClient();
   relayTimer.loop();
   delay(1000);
-
 
 }
 
@@ -157,7 +133,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   memcpy(buffer, payload, length + 1);
 
   // Khởi tạo một object JSON và parse payload
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<500> doc;
   DeserializationError error = deserializeJson(doc, buffer);
 
   // Kiểm tra lỗi parse
@@ -189,23 +165,40 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     int duration = doc["reminder"]["duration"];
     String repeatType = doc["reminder"]["repeat_type"];
     relayTimer.setReminder(timeStart, duration, repeatType);
+    relayTimer.addReminder(timeStart, duration, repeatType);
 
   }
 
   String pingTopic = deviceId + "/ping";
   if (strcmp(topic, pingTopic.c_str()) == 0) {
     String messageString = relayTimer.getStateMessage(deviceId, "ping");
-    mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+    //    mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+    App::sendDeviceMessage(messageString);
+
 
   }
 
   String switchOnTopic = deviceId + "/switchon";
   if (strcmp(topic, switchOnTopic.c_str()) == 0) {
+
+    String action = doc["action"];
+    if (action == "remove_reminder") {
+      String startTime = doc["start_time"];
+
+      relayTimer.removeReminder(startTime, [relayTimer, deviceId]() {
+        String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+        App::sendDeviceMessage(messageString);
+      });
+
+    }
+
+
     if (doc.containsKey("longlast")) {
       int longlast = doc["longlast"];
       relayTimer.setSwitchOnLast(longlast);
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      //      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      App::sendDeviceMessage(messageString);
       App::sendSlackMessage();
 
     }
@@ -214,8 +207,10 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       bool isOn = doc["switch_value"];
       relayTimer.setOn(isOn);
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      //      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
       App::sendSlackMessage();
+      App::sendDeviceMessage(messageString);
+      App::getDeviceInfo(deviceId);
 
     }
 
@@ -224,9 +219,12 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       int duration = doc["reminder"]["duration"];
       String repeatType = doc["reminder"]["repeat_type"];
       relayTimer.setReminder(startTime, duration, repeatType);
+      relayTimer.addReminder(startTime, duration, repeatType);
 
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      //      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      App::sendDeviceMessage(messageString);
+
     }
   }
 }

@@ -9,6 +9,12 @@ class RelayTimer {
 
     enum RepeatType { DAILY, WEEKLY, MONTHLY, NONE };
 
+    struct Reminder {
+      String startTime;
+      int duration;
+      RepeatType repeatType;
+    };
+
   private:
     const char* ntpServer = "pool.ntp.org";
     const long  gmtOffset_sec = 7 * 3600;
@@ -17,6 +23,9 @@ class RelayTimer {
     String reminderStartTime;
     int reminderDuration;
     String reminderRepeatType;
+
+    std::vector<Reminder> reminders;
+
 
     bool isScheduleMatched(int day, int month, int year, int hour, int minute, int second, RepeatType repeatType) {
       struct tm timeinfo;
@@ -49,52 +58,64 @@ class RelayTimer {
       return false;
     }
 
+    RepeatType getRepeatTypeFromString(String repeatType) {
+      if (repeatType == "daily") return DAILY;
+      if (repeatType == "weekly") return WEEKLY;
+      if (repeatType == "monthly") return MONTHLY;
+      return NONE;
+    }
+
   public:
     Relay relay;
     WatchDog watchDog;
     WiFiUDP ntpUDP;
 
-
-
     const long utcOffsetInSeconds = 7 * 3600;
 
-
     void setup() {
-      //      timeClient = std::make_unique<NTPClient>(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
-      //      timeClient->begin();
       relay.setup("");
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     }
 
     void loop() {
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-
       struct tm timeinfo;
       if (!getLocalTime(&timeinfo)) {
         Serial.println("Failed to obtain time");
         return;
       }
 
-      //      Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+      for (const auto& reminder : reminders) {
+        if (isReminderMatched(reminder.startTime, reminder.repeatType)) {
+          Serial.println("Activate relay for reminder");
+          if (reminder.duration > 0) {
+            setSwitchOnLast(reminder.duration);
+          } else {
+            relay.setOn(true);
+          }
+        }
+      }
+      relay.loop([](int count) {});
+    }
 
-      //      bool isActive = watchDog.isAlarmAtTime(timeinfo.tm_hour, timeinfo.tm_min);
-      bool isActive = isReminderMatched(reminderStartTime, reminderRepeatType);
+    void addReminder(String startTime, int duration, String repeatType) {
 
-      if (isActive) {
-        Serial.println("Activate relay");
-        if (reminderDuration > 0) {
-          Serial.println("Duration: ");
-          Serial.print(reminderDuration);
-          setSwitchOnLast(reminderDuration);
-        } else {
-          relay.setOn(true);
+      RepeatType repeatTypeEnum = getRepeatTypeFromString(repeatType);
 
+      // Search for an existing reminder with the same startTime
+      for (auto& reminder : reminders) {
+        if (reminder.startTime == startTime) {
+          // Update the existing reminder's duration and repeatType
+          reminder.duration = duration;
+          reminder.repeatType = repeatTypeEnum;
+          Serial.println("Updated existing reminder with new duration and repeatType.");
+          return;  // Exit the method as we've updated the existing reminder
         }
       }
 
-      relay.loop([](int count) {
-
-      });
+      // If no existing reminder is found, create a new one
+      Reminder newReminder = { startTime, duration, repeatTypeEnum };
+      reminders.push_back(newReminder);
+      Serial.println("Added new reminder.");
     }
 
     void setReminder(String startTime, int duration, String repeatType) {
@@ -103,9 +124,35 @@ class RelayTimer {
       reminderRepeatType = repeatType;
     }
 
+    void removeReminder(String startTime, std::function<void()> callback) {
+      // Find and erase the reminder with the matching startTime
+      auto it = std::remove_if(reminders.begin(), reminders.end(),
+      [&startTime](const Reminder & reminder) {
+        return reminder.startTime == startTime;
+      });
+
+      // If a reminder was found and removed
+      if (it != reminders.end()) {
+        reminders.erase(it, reminders.end());  // Erase the reminder from the vector
+        Serial.println("Reminder removed successfully.");
+        callback();
+      } else {
+        Serial.println("No reminder found with the specified startTime.");
+      }
+    }
+
+    bool isReminderMatched(String timestamp, RepeatType repeatType) {
+      int year, month, day, hour, minute, second;
+      if (timestamp.length() == 16) {
+        timestamp += ":00";
+      }
+      sscanf(timestamp.c_str(), "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &minute, &second);
+      return isScheduleMatched(day, month, year, hour, minute, second, repeatType);
+    }
+
     String getStateMessage(String deviceId, String topicType) {
-      time_t now = time(nullptr);  // Get the current epoch time
-      StaticJsonDocument<200> jsonDoc;
+      time_t now = time(nullptr);
+      StaticJsonDocument<500> jsonDoc;
       jsonDoc["device_type"] = "switch";
       jsonDoc["topic_type"] = topicType;
       jsonDoc["device_id"] = deviceId;
@@ -113,10 +160,21 @@ class RelayTimer {
       jsonDoc["update_at"] = now;
       jsonDoc["longlast"] = relay.longlast;
       jsonDoc["timetrigger"] = watchDog.getTimeString();
-      JsonObject reminder = jsonDoc.createNestedObject("reminder");
-      reminder["start_time"] = reminderStartTime;
-      reminder["duration"] = reminderDuration;
-      reminder["repeat_type"] = reminderRepeatType;
+      JsonObject reminder1 = jsonDoc.createNestedObject("reminder");
+      reminder1["start_time"] = reminderStartTime;
+      reminder1["duration"] = reminderDuration;
+      reminder1["repeat_type"] = reminderRepeatType;
+
+      JsonArray reminderArray = jsonDoc.createNestedArray("reminders");
+      for (const auto& reminder : reminders) {
+        JsonObject reminderJson = reminderArray.createNestedObject();
+        reminderJson["start_time"] = reminder.startTime;
+        reminderJson["duration"] = reminder.duration;
+        reminderJson["repeat_type"] = reminder.repeatType == DAILY ? "daily" :
+                                      reminder.repeatType == WEEKLY ? "weekly" :
+                                      reminder.repeatType == MONTHLY ? "monthly" : "none";
+      }
+
       String jsonString;
       serializeJson(jsonDoc, jsonString);
       return jsonString;
@@ -130,42 +188,4 @@ class RelayTimer {
     void setOn(bool isOn) {
       relay.setOn(isOn);
     }
-
-    bool isReminderMatched(String timestamp, String stringRepeatType) {
-
-      Serial.println("timestamp1");
-      Serial.println(timestamp.c_str());
-
-
-      int year, month, day, hour, minute, second;
-      // Nếu timestamp có định dạng "YYYY-MM-DDTHH:MM", chuyển đổi để bao gồm giây mặc định là 0
-      if (timestamp.length() == 16) {  // Nếu chuỗi là "YYYY-MM-DDTHH:MM"
-        timestamp += ":00";          // Thêm giây = 0 vào cuối chuỗi
-      }
-
-      // Phân tích chuỗi timestamp
-      sscanf(timestamp.c_str(), "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &minute, &second);
-      Serial.println("timestamp2");
-      Serial.println(timestamp.c_str());
-
-      RepeatType repeatType;
-
-      // Xác định kiểu lặp
-      if (stringRepeatType == "daily") {
-        repeatType = DAILY;
-      } else if (stringRepeatType == "weekly") {
-        repeatType = WEEKLY;
-      } else if (stringRepeatType == "monthly") {
-        repeatType = MONTHLY;
-      } else if (stringRepeatType == "none") {
-        repeatType = NONE;  // Thêm kiểu NONE để xử lý không lặp lại
-      } else {
-        repeatType = NONE; // Mặc định là DAILY nếu không xác định rõ ràng
-      }
-
-      return isScheduleMatched(day, month, year, hour, minute, second, repeatType);
-    }
-
-
-
 };

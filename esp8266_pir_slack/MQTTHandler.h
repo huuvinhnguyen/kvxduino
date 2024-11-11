@@ -33,8 +33,16 @@ void NTPConnect(void) {
   Serial.print("Setting time using SNTP");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
+  unsigned long startMillis = millis(); // Record the start time
+  const unsigned long timeout = 10000;  // 10 seconds in milliseconds
+
   now = time(nullptr);
   while (now < nowish) {
+    if (millis() - startMillis >= timeout) {
+      Serial.println("Failed to set time. Restarting...");
+      ESP.restart(); // Restart the ESP8266
+      return; // Exit the function after restart command
+    }
     delay(500);
     Serial.print(".");
     now = time(nullptr);
@@ -89,7 +97,16 @@ class MQTTHandler {
     }
 
     void loopConnectMQTT() {
+     
       client.loop();
+
+      if (client.connected()) {
+        Serial.println("loopConnectMQTT");
+
+      } else {
+        loopReconnectMQTT();
+        Serial.println("loopReconnectMQTT");
+      }
 
     }
 
@@ -148,6 +165,7 @@ class MQTTHandler {
         Serial.println("connected");
         String jsonString = getInitialMessage(deviceId);
         client.publish(deviceId.c_str(), jsonString.c_str(), false);
+        //        App::sendDeviceMessage(jsonString);
 
         String switchTopic = deviceId + "/switch";
         client.subscribe(switchTopic.c_str(), 1);

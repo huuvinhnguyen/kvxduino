@@ -13,7 +13,7 @@ class App {
     static void sendSlackMessage() {
 
       uint32_t chipId = ESP.getChipId();
- 
+
       const char* webhookUrl = "http://103.9.77.155/devices/notify";
 
       if (WiFi.status() == WL_CONNECTED) {
@@ -53,4 +53,65 @@ class App {
         Serial.println("Error in WiFi connection");
       }
     }
+
+    static void sendDeviceMessage(String messagePayload) {
+
+      const char* webhookUrl = "http://103.9.77.155/api/devices/receive_info";
+
+      if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+
+        WiFiClient client;
+
+        http.begin(client, webhookUrl);
+        http.addHeader("Content-Type", "application/json");
+
+        int httpResponseCode = http.POST(messagePayload);
+
+        if (httpResponseCode > 0) {
+          String response = http.getString();
+          Serial.println("HTTP Response Code: " + String(httpResponseCode));
+          Serial.println("Response: " + response);
+        } else {
+          Serial.println("Error code: " + String(httpResponseCode));
+        }
+
+        http.end();
+      } else {
+        Serial.println("Error in WiFi connection");
+      }
+    }
+
+    static String getDeviceInfo(String deviceId) {
+
+      const String webhookUrl = "http://103.9.77.155/api/devices/device_info?device_id=" + deviceId;
+
+      if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+
+        WiFiClient client;
+
+        http.begin(client, webhookUrl);
+        http.addHeader("Content-Type", "application/json");
+
+        int httpResponseCode = http.GET();
+
+        if (httpResponseCode > 0) {
+          String response = http.getString();
+          Serial.println("HTTP Response Code: " + String(httpResponseCode));
+          Serial.println("Response: " + response);
+          return String(response);
+        } else {
+          Serial.println("Error code: " + String(httpResponseCode));
+        }
+
+        http.end();
+      } else {
+        Serial.println("Error in WiFi connection");
+      }
+      return  "";
+    }
+
+
+
 };
