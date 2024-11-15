@@ -1,12 +1,15 @@
 #include "Relay.h"
 
-void Relay::setup(String mqttPath) {
-  path = mqttPath;
+void Relay::setup(uint8_t relayPin) {
 
-  for (int i = 0; i < sizeof(relayPins); i++) {
-    pinMode(relayPins[i], OUTPUT);
-    digitalWrite(relayPins[i], LOW);
-  }
+  pin = relayPin;
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, LOW);
+
+//  for (int i = 0; i < sizeof(relayPins); i++) {
+//    pinMode(relayPins[i], OUTPUT);
+//    digitalWrite(relayPins[i], LOW);
+//  }
 }
 
 
@@ -29,19 +32,22 @@ void Relay::loop(callbackFunc func) {
     setOn(false);
     startAttempedTime = 0;
     Serial.println("Switch Off");
-        cb1(201);
+    cb1(201);
   }
 }
 
 void Relay::setOn(bool isOn) {
   uint8_t relayValue = (isOn) ? HIGH : LOW;
-  for (int i = 0; i < sizeof(relayPins); i++) {
-    digitalWrite(relayPins[i], relayValue);
-    Serial.println("Switch value:");
+//  for (int i = 0; i < sizeof(relayPins); i++) {
+//    digitalWrite(relayPins[i], relayValue);
+//    Serial.println("Switch value:");
+//
+//    Serial.println(relayValue);
+//
+//  }
 
-    Serial.println(relayValue);
-
-  }
+  digitalWrite(pin, relayValue);
+  
   value = relayValue;
 
 }
@@ -56,8 +62,8 @@ void Relay::handleMessage(char *topic, String message) {
   String switchTopic = "switch";
 
   if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
-  // Xử lý message
-   }
+    // Xử lý message
+  }
 
 
   if (strcmp(topic, switchTopic.c_str()) == 0) {
@@ -74,7 +80,7 @@ void Relay::handleMessage(char *topic, String message) {
   if (strcmp(topic, switchon.c_str()) == 0) {
     Serial.println("Switch ON: ");
     if (message == "done") {
-      } else if (message.toInt() == 0) {
+    } else if (message.toInt() == 0) {
       switchOn();
     } else {
       setLonglast(message.toInt());
