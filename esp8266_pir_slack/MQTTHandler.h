@@ -97,7 +97,7 @@ class MQTTHandler {
     }
 
     void loopConnectMQTT() {
-     
+
       client.loop();
 
       if (client.connected()) {
@@ -163,6 +163,8 @@ class MQTTHandler {
       if (client.connect(clientId.c_str())) {
 
         Serial.println("connected");
+        client.subscribe(deviceId.c_str(), 1);
+
         String jsonString = getInitialMessage(deviceId);
         client.publish(deviceId.c_str(), jsonString.c_str(), false);
         //        App::sendDeviceMessage(jsonString);
@@ -176,9 +178,7 @@ class MQTTHandler {
         String timeTriggerTopic = deviceId + "/timetrigger";
         client.subscribe(timeTriggerTopic.c_str(), 1);
 
-        //    String jsonString = getStateMessage(relay);
-        //    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-        client.subscribe(deviceId.c_str(), 1);
+
 
         String longlast = deviceId + "/longlast";
         client.subscribe(longlast.c_str(), 1);

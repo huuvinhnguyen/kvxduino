@@ -3,13 +3,13 @@
 class Relay {
   private:
     using callbackFunc = void (*) (int);
-    uint8_t relayPins[5] = {D5};
+//    uint8_t relayPins[5] = {D5};
     bool isSetOnLastingActive = false;
     long startAttempedTime = 0;
-    String path;
+    uint8_t pin;
 
   public:
-    void setup(String mqttPath);
+    void setup(uint8_t relayPin);
     void loop(callbackFunc func);
     void handleMessage(char *topic, String message);
     void setOn(bool isOn);

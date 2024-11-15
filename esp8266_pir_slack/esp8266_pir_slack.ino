@@ -11,7 +11,6 @@
 #include "MQTTHandler.h"
 #include "App.h"
 
-
 ESP8266WebServer server(80);
 
 const uint8_t pinPir2 = D7;
@@ -20,22 +19,6 @@ int val;
 WiFiHandler wifiHandler;
 RelayTimer relayTimer;
 MQTTHandler mqttHandler;
-
-//
-//struct Configuration {
-//
-//  char mqttServer[30];
-//  char mqttUser[30];
-//  char mqttPassword[30];
-//  int mqttPort = 14985;
-//  char mqttpath[30];
-//  char wifiSSID[30];
-//  char wifiPassword[30];
-//
-//} configuration;
-
-//WiFiClient espClient;
-//PubSubClient client(espClient);
 
 uint8_t ledPin = 17;
 
@@ -161,56 +144,54 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   String rootTopic = deviceId;
   if (strcmp(topic, rootTopic.c_str()) == 0) {
-    String timeStart = doc["reminder"]["start_time"];
-    int duration = doc["reminder"]["duration"];
-    String repeatType = doc["reminder"]["repeat_type"];
-    relayTimer.setReminder(timeStart, duration, repeatType);
-    relayTimer.addReminder(timeStart, duration, repeatType);
+ 
+    String deviceInfo = App::getDeviceInfo(deviceId);
+    relayTimer.updateRelays(deviceInfo);
 
   }
 
   String pingTopic = deviceId + "/ping";
   if (strcmp(topic, pingTopic.c_str()) == 0) {
     String messageString = relayTimer.getStateMessage(deviceId, "ping");
-    //    mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
-    App::sendDeviceMessage(messageString);
-
+//    App::sendDeviceMessage(messageString);
 
   }
 
   String switchOnTopic = deviceId + "/switchon";
   if (strcmp(topic, switchOnTopic.c_str()) == 0) {
 
+    int relayIndex = doc["relay_index"];
     String action = doc["action"];
     if (action == "remove_reminder") {
       String startTime = doc["start_time"];
 
-      relayTimer.removeReminder(startTime, [relayTimer, deviceId]() {
+      relayTimer.removeReminder(relayIndex, startTime, [relayTimer, deviceId]() {
         String messageString = relayTimer.getStateMessage(deviceId, "switchon");
         App::sendDeviceMessage(messageString);
       });
 
     }
 
-
     if (doc.containsKey("longlast")) {
       int longlast = doc["longlast"];
-      relayTimer.setSwitchOnLast(longlast);
+      relayTimer.setSwitchOnLast(relayIndex, longlast);
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-      //      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
       App::sendDeviceMessage(messageString);
       App::sendSlackMessage();
 
     }
 
     if (doc.containsKey("switch_value")) {
+      Serial.println("step 1: App::sendDeviceMessage(messageString)");
+
       bool isOn = doc["switch_value"];
-      relayTimer.setOn(isOn);
+      relayTimer.setOn(relayIndex, isOn);
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-      //      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
+      Serial.println("App::sendDeviceMessage(messageString)");
+      Serial.println(messageString);
+
       App::sendSlackMessage();
       App::sendDeviceMessage(messageString);
-      App::getDeviceInfo(deviceId);
 
     }
 
@@ -218,11 +199,9 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       String startTime = doc["reminder"]["start_time"];
       int duration = doc["reminder"]["duration"];
       String repeatType = doc["reminder"]["repeat_type"];
-      relayTimer.setReminder(startTime, duration, repeatType);
-      relayTimer.addReminder(startTime, duration, repeatType);
+      relayTimer.addReminder(relayIndex, startTime, duration, repeatType);
 
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-      //      mqttHandler.publish(deviceId.c_str(), messageString.c_str(), true);
       App::sendDeviceMessage(messageString);
 
     }
