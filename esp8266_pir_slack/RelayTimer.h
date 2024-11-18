@@ -13,16 +13,15 @@ class RelayTimer {
       String startTime;
       int duration;
       RepeatType repeatType;
+      bool isActive;
+
     };
 
   private:
     const char* ntpServer = "pool.ntp.org";
     const long  gmtOffset_sec = 7 * 3600;
     const int   daylightOffset_sec = 0 ;
-
-    String reminderStartTime;
-    int reminderDuration;
-    String reminderRepeatType;
+    bool isRemindersActive = true;
 
     std::vector<Reminder> reminders;
     std::vector<Relay> relays;
@@ -94,6 +93,31 @@ class RelayTimer {
       relay2.setup(D6);
       relays.push_back(relay2);
 
+      Relay relay3;
+      relay3.setup(D7);
+      relays.push_back(relay3);
+
+      Relay relay4;
+      relay4.setup(D8);
+      relays.push_back(relay4);
+
+      Relay relay5;
+      relay5.setup(D9);
+      relays.push_back(relay5);
+
+      Relay relay6;
+      relay6.setup(D10);
+      relays.push_back(relay6);
+
+      Relay relay7;
+      relay7.setup(D11);
+      relays.push_back(relay7);
+
+      Relay relay8;
+      relay8.setup(D11);
+      relays.push_back(relay8);
+
+
       configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
     }
@@ -106,7 +130,7 @@ class RelayTimer {
       }
 
       for (const auto& reminder : reminders) {
-        if (isReminderMatched(reminder.startTime, reminder.repeatType)) {
+        if (isReminderMatched(reminder.startTime, reminder.repeatType) && reminder.isActive) {
           Serial.println("Activate relay for reminder");
           if (reminder.duration > 0) {
             setSwitchOnLast(reminder.relayIndex, reminder.duration);
@@ -138,9 +162,18 @@ class RelayTimer {
       }
 
       // If no existing reminder is found, create a new one
-      Reminder newReminder = { relayIndex, startTime, duration, repeatTypeEnum };
+      Reminder newReminder = { relayIndex, startTime, duration, repeatTypeEnum, isRemindersActive };
       reminders.push_back(newReminder);
       Serial.println("Added new reminder.");
+    }
+
+    void setRemindersActive(int relayIndex, bool isActive) {
+      isRemindersActive = isActive;
+      for (auto& reminder : reminders) {
+        if (reminder.relayIndex == relayIndex) {
+          reminder.isActive = isActive;
+        }
+      }
     }
 
     void removeReminder(int relayIndex, String startTime, std::function<void()> callback) {
@@ -183,6 +216,7 @@ class RelayTimer {
         JsonObject relayJson = relayArray.createNestedObject();
         relayJson["switch_value"] = relay.value;
         relayJson["longlast"] = relay.longlast;
+        relayJson["is_reminders_active"] = isRemindersActive;
 
         // Filter reminders for the current relay's index
         std::vector<Reminder> filteredReminders = getRemindersByRelayIndex(relayIndex);
@@ -226,6 +260,9 @@ class RelayTimer {
         JsonObject relayJson = relaysArray[i].as<JsonObject>();
         bool isOn = relayJson["switch_value"];
         relays[i].setOn(isOn);
+        if (relayJson.containsKey("is_reminders_active")) {
+          isRemindersActive = relayJson["is_reminders_active"];
+        }
 
         JsonArray remindersArray = relayJson["reminders"].as<JsonArray>();
 
@@ -236,7 +273,7 @@ class RelayTimer {
           String repeatType = reminderJson["repeat_type"].as<String>();
           RepeatType repeatTypeEnum = getRepeatTypeFromString(repeatType);
 
-          Reminder newReminder = { relayIndex, startTime, duration, repeatTypeEnum };
+          Reminder newReminder = { relayIndex, startTime, duration, repeatTypeEnum, isRemindersActive };
           reminders.push_back(newReminder);
 
         }
