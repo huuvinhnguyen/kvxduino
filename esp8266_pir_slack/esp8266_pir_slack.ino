@@ -153,7 +153,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   String pingTopic = deviceId + "/ping";
   if (strcmp(topic, pingTopic.c_str()) == 0) {
     String messageString = relayTimer.getStateMessage(deviceId, "ping");
-    //    App::sendDeviceMessage(messageString);
+    App::sendDeviceMessage(messageString);
 
   }
 
@@ -200,7 +200,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       bool isActive = doc["is_reminders_active"];
       relayTimer.setRemindersActive(relayIndex, isActive);
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-        Serial.println("App::sendDeviceMessage(messageString)");
+      Serial.println("App::sendDeviceMessage(messageString)");
       Serial.println(messageString);
       App::sendSlackMessage();
       App::sendDeviceMessage(messageString);

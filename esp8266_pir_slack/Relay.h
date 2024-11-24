@@ -18,5 +18,6 @@ class Relay {
     void switchOn();
     uint8_t value = LOW;
     int longlast = 0; //miliseconds
+    bool isRemindersActive = true;
 
 };
