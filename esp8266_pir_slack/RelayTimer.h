@@ -79,30 +79,38 @@ class RelayTimer {
     WiFiUDP ntpUDP;
 
     const long utcOffsetInSeconds = 7 * 3600;
+    using callbackFunc = std::function<void(String, int)>;
+
+    callbackFunc cb2;
 
     void setup() {
 
       Relay relay1;
-      relay1.setup(D5);
+      relay1.setup(D7); // Den truoc san
       relays.push_back(relay1);
 
-      Relay relay2;
-      relay2.setup(D6);
-      relays.push_back(relay2);
-
-      Relay relay3;
-      relay3.setup(D7);
-      relays.push_back(relay3);
-
-      Relay relay4;
-      relay4.setup(D8);
-      relays.push_back(relay4);
+//      Relay relay1;
+//      relay1.setup(4);
+//      relays.push_back(relay1);
+//
+//      Relay relay2;
+//      relay2.setup(14);
+//      relays.push_back(relay2);
+//
+//      Relay relay3;
+//      relay3.setup(D6);
+//      relays.push_back(relay3);
+//
+//      Relay relay4;
+//      relay4.setup(D7);
+//      relays.push_back(relay4);
 
       configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
     }
 
-    void loop() {
+    void loop(callbackFunc func) {
+      cb2 = func;
       struct tm timeinfo;
       if (!getLocalTime(&timeinfo)) {
         Serial.println("Failed to obtain time");
@@ -112,16 +120,23 @@ class RelayTimer {
       for (const auto& reminder : reminders) {
         if (isReminderMatched(reminder.startTime, reminder.repeatType) && reminder.isActive) {
           Serial.println("Activate relay for reminder");
+          Serial.println("Duration: ");
+          Serial.print(reminder.duration);
           if (reminder.duration > 0) {
             setSwitchOnLast(reminder.relayIndex, reminder.duration);
           } else {
+
             relays[reminder.relayIndex].setOn(true);
           }
         }
       }
 
+      int index = 0;
       for (auto& relay : relays) {
-        relay.loop([](int count) {});
+        relay.loop([this, index](String state) {
+          this->cb2(state, index);
+        });
+        index++;
       }
 
     }
@@ -155,6 +170,7 @@ class RelayTimer {
         }
       }
     }
+
 
     void removeReminder(int relayIndex, String startTime, std::function<void()> callback) {
       // Find and erase the reminder with the matching startTime
@@ -218,6 +234,8 @@ class RelayTimer {
     }
 
     void setSwitchOnLast(int relayIndex, int longlast) {
+      Serial.println("relayIndex: ");
+      Serial.print(relayIndex);
       relays[relayIndex].longlast = longlast;
       relays[relayIndex].switchOn();
     }

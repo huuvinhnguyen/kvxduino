@@ -1,100 +1,56 @@
 #include "Relay.h"
 
+
 void Relay::setup(uint8_t relayPin) {
 
   pin = relayPin;
   pinMode(pin, OUTPUT);
-  digitalWrite(pin, LOW);
+  digitalWrite(pin, RELAY_OFF);
 
-//  for (int i = 0; i < sizeof(relayPins); i++) {
-//    pinMode(relayPins[i], OUTPUT);
-//    digitalWrite(relayPins[i], LOW);
-//  }
 }
 
 
 void Relay::loop(callbackFunc func) {
   cb1 = func;
 
-  long now = millis();
+  unsigned long now = millis();  // Đảm bảo sử dụng unsigned long để tránh overflow
 
-  if (now - startAttempedTime > longlast && isSetOnLastingActive) {
-    if (startAttempedTime > 0) {
-      isSetOnLastingActive = false;
+  if (isSetOnLastingActive) {
+    // Nếu đây là lần đầu tiên chạy (startAttempedTime == 0), khởi tạo thời gian bắt đầu
+    if (startAttempedTime == 0) {
+      startAttempedTime = now;
+      setOn(true);  // Bật relay ngay lập tức
+      Serial.println("Relay bật lần đầu.");
+      cb1("relay_on");  // Gửi callback thông báo relay đã tắt
+
     }
 
-    startAttempedTime = now;
-    setOn(true);
-    Serial.println("Switch On");
-
-
-  } else if (startAttempedTime != 0 && isSetOnLastingActive == false) {
-    setOn(false);
-    startAttempedTime = 0;
-    Serial.println("Switch Off");
-    cb1(201);
+    // Kiểm tra nếu đã vượt quá thời gian longlast
+    if (now - startAttempedTime >= longlast) {
+      setOn(false);  // Tắt relay
+      startAttempedTime = 0;  // Reset thời gian
+      isSetOnLastingActive = false;
+      Serial.println("Relay tắt sau thời gian đã định.");
+      cb1("relay_off");  // Gửi callback thông báo relay đã tắt
+    }
   }
 }
 
-void Relay::setOn(bool isOn) {
-  uint8_t relayValue = (isOn) ? HIGH : LOW;
-//  for (int i = 0; i < sizeof(relayPins); i++) {
-//    digitalWrite(relayPins[i], relayValue);
-//    Serial.println("Switch value:");
-//
-//    Serial.println(relayValue);
-//
-//  }
 
+void Relay::setOn(bool isOn) {
+  uint8_t relayValue = (isOn) ? RELAY_ON : RELAY_OFF;
   digitalWrite(pin, relayValue);
-  
-  value = relayValue;
+
+  value = isOn;
 
 }
 
 
 void Relay::switchOn() {
   isSetOnLastingActive = true;
-
-}
-
-void Relay::handleMessage(char *topic, String message) {
-  String switchTopic = "switch";
-
-  if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
-    // Xử lý message
-  }
+  startAttempedTime = 0;           // Đặt lại thời gian bắt đầu (cho phép bật tức thì)
 
 
-  if (strcmp(topic, switchTopic.c_str()) == 0) {
-    if (message.equals("1")) {
-
-      setOn(true);
-
-    } else if (message.equals("0")) {
-      setOn(false);
-    }
-  }
-
-  String switchon = "switchon";
-  if (strcmp(topic, switchon.c_str()) == 0) {
-    Serial.println("Switch ON: ");
-    if (message == "done") {
-    } else if (message.toInt() == 0) {
-      switchOn();
-    } else {
-      setLonglast(message.toInt());
-      switchOn();
-    }
-  }
-
-  String longLastTopic = "longlast";
-  if (strcmp(topic, longLastTopic.c_str()) == 0) {
-    setLonglast(message.toInt());
-    Serial.println("SetLonglast: ");
-    Serial.println(message);
-
-  }
 }
 
 void Relay::setLonglast(int seconds) {

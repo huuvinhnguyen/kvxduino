@@ -1,11 +1,13 @@
 #include <Arduino.h>
 
+#define RELAY_ON HIGH  // Relay trạng thái bật
+#define RELAY_OFF LOW  // Relay trạng thái tắt
+
 class Relay {
   private:
-    using callbackFunc = void (*) (int);
-//    uint8_t relayPins[5] = {D5};
+    using callbackFunc = std::function<void(String)>;
     bool isSetOnLastingActive = false;
-    long startAttempedTime = 0;
+    unsigned long startAttempedTime = 0;
     uint8_t pin;
 
   public:
@@ -16,7 +18,7 @@ class Relay {
     callbackFunc cb1;
     void setLonglast(int seconds);
     void switchOn();
-    uint8_t value = LOW;
+    uint8_t value = RELAY_OFF;
     int longlast = 0; //miliseconds
     bool isRemindersActive = true;
 
