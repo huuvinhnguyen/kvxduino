@@ -1,0 +1,186 @@
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+#include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
+#include "WiFiHandler.h"
+#include "time.h"
+#include "RelayTimer.h"
+#include "MQTTHandler.h"
+#include "App.h"
+
+ESP8266WebServer server(80);
+
+const uint8_t pinPir2 = D7;
+int val;
+
+WiFiHandler wifiHandler;
+RelayTimer relayTimer;
+MQTTHandler mqttHandler;
+
+uint8_t ledPin = 17;
+
+
+void setup() {
+
+  Serial.begin(115200);
+  pinMode(pinPir2, INPUT);
+
+  wifiHandler.setupWiFi();
+  relayTimer.setup();
+  mqttHandler.registerCallback(handleMQTTCallback);
+
+}
+
+void loop() {
+
+  wifiHandler.loopConnectWiFi();
+  mqttHandler.loopConnectMQTT();
+  server.handleClient();
+  relayTimer.loop([](String state, int index) {
+    App::sendSlackMessage(state, index);
+  });
+  delay(1000);
+
+}
+
+unsigned long lastNotificationTime = 0;
+const unsigned long notificationInterval = 5000; // 5 giây
+
+void checkPir() {
+  val = digitalRead(pinPir2);
+  if (val == LOW) {
+    Serial.println("No motion");
+    delay(1000);
+  } else {
+    val = LOW;
+    Serial.println("Motion detected  ALARM");
+
+    // Kiểm tra thời gian để tránh gửi thông báo liên tục
+    unsigned long currentTime = millis();
+    if (currentTime - lastNotificationTime >= notificationInterval) {
+      App::sendPirSlackMessage();
+      lastNotificationTime = currentTime; // Cập nhật thời gian thông báo
+    }
+
+    delay(1000);
+  }
+}
+
+
+
+void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
+
+  payload[length] = '\0';
+
+  // Khởi tạo một bộ đệm để chứa payload
+  char buffer[length + 1];
+  memcpy(buffer, payload, length + 1);
+
+  // Khởi tạo một object JSON và parse payload
+  StaticJsonDocument<500> doc;
+  DeserializationError error = deserializeJson(doc, buffer);
+
+  // Kiểm tra lỗi parse
+  if (error) {
+    Serial.print("Failed to parse JSON: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  // Truy cập các trường trong object JSON
+  const char* message = doc["message"];
+  Serial.print("Received message: ");
+  Serial.print(message);
+
+
+  Serial.print("Message arrived in topic: ");
+  Serial.println(topic);
+
+  Serial.print("Message:");
+  char *charArray = (char*)payload;
+  String str = (String)charArray;
+  Serial.print(str);
+
+  String deviceId = mqttHandler.deviceId;
+
+  String rootTopic = deviceId;
+  if (strcmp(topic, rootTopic.c_str()) == 0) {
+
+    String deviceInfo = App::getDeviceInfo(deviceId);
+    relayTimer.updateRelays(deviceInfo);
+
+  }
+
+  String pingTopic = deviceId + "/ping";
+  if (strcmp(topic, pingTopic.c_str()) == 0) {
+    String messageString = relayTimer.getStateMessage(deviceId, "ping");
+    App::sendDeviceMessage(messageString);
+
+  }
+
+  String switchOnTopic = deviceId + "/switchon";
+  if (strcmp(topic, switchOnTopic.c_str()) == 0) {
+
+    int relayIndex = doc["relay_index"];
+    String action = doc["action"];
+    if (action == "remove_reminder") {
+      String startTime = doc["start_time"];
+
+      relayTimer.removeReminder(relayIndex, startTime, [relayTimer, deviceId]() {
+        String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+        App::sendDeviceMessage(messageString);
+      });
+
+    }
+
+    if (doc.containsKey("longlast")) {
+      int longlast = doc["longlast"];
+      relayTimer.setSwitchOnLast(relayIndex, longlast);
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      App::sendDeviceMessage(messageString);
+      App::sendSlackMessage();
+
+    }
+
+    if (doc.containsKey("switch_value")) {
+      Serial.println("step 1: App::sendDeviceMessage(messageString)");
+
+      bool isOn = doc["switch_value"];
+      relayTimer.setOn(relayIndex, isOn);
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      Serial.println("App::sendDeviceMessage(messageString)");
+      Serial.println(messageString);
+
+      App::sendSlackMessage();
+      App::sendDeviceMessage(messageString);
+
+    }
+
+    if (doc.containsKey("is_reminders_active")) {
+
+      bool isActive = doc["is_reminders_active"];
+      relayTimer.setRemindersActive(relayIndex, isActive);
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      Serial.println("App::sendDeviceMessage(messageString)");
+      Serial.println(messageString);
+      App::sendSlackMessage();
+      App::sendDeviceMessage(messageString);
+
+    }
+
+    if (doc.containsKey("reminder")) {
+      String startTime = doc["reminder"]["start_time"];
+      int duration = doc["reminder"]["duration"];
+      String repeatType = doc["reminder"]["repeat_type"];
+      bool isRemindersActive = doc["is_reminders_active"];
+      relayTimer.addReminder(relayIndex, startTime, duration, repeatType);
+
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      App::addReminderMessage(messageString);
+
+    }
+  }
+}
