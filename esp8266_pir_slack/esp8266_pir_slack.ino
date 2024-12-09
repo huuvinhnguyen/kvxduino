@@ -39,7 +39,9 @@ void loop() {
   wifiHandler.loopConnectWiFi();
   mqttHandler.loopConnectMQTT();
   server.handleClient();
-  relayTimer.loop();
+  relayTimer.loop([](String state, int index) {
+    App::sendSlackMessage(state, index);
+  });
   delay(1000);
 
 }
@@ -59,7 +61,7 @@ void checkPir() {
     // Kiểm tra thời gian để tránh gửi thông báo liên tục
     unsigned long currentTime = millis();
     if (currentTime - lastNotificationTime >= notificationInterval) {
-      sendSlackMessage();
+      App::sendPirSlackMessage();
       lastNotificationTime = currentTime; // Cập nhật thời gian thông báo
     }
 
@@ -67,45 +69,7 @@ void checkPir() {
   }
 }
 
-void sendSlackMessage() {
 
-  const char* webhookUrl = "http://103.9.77.155/devices/notify";
-
-  if (WiFi.status() == WL_CONNECTED) {
-    WiFiClient wifiClient;
-    HTTPClient http;
-
-    http.begin(wifiClient, webhookUrl);
-    http.addHeader("Content-Type", "application/json");
-
-    // Tạo đối tượng JSON
-    time_t now = time(nullptr);
-    DynamicJsonDocument jsonDoc(256);
-    jsonDoc["id"] =  String(ESP.getChipId());
-    jsonDoc["message"] = "Hello from esp8266";
-    jsonDoc["time"] = now;
-    jsonDoc["model"] = "esp8266";
-    jsonDoc["sen"] = "pir";
-
-    // Chuyển đổi đối tượng JSON thành chuỗi
-    String payload;
-    serializeJson(jsonDoc, payload);
-
-    int httpResponseCode = http.POST(payload);
-
-    if (httpResponseCode > 0) {
-      String response = http.getString();
-      Serial.println("HTTP Response Code: " + String(httpResponseCode));
-      Serial.println("Response: " + response);
-    } else {
-      Serial.println("Error code: " + String(httpResponseCode));
-    }
-
-    http.end();
-  } else {
-    Serial.println("Error in WiFi connection");
-  }
-}
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
@@ -144,7 +108,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   String rootTopic = deviceId;
   if (strcmp(topic, rootTopic.c_str()) == 0) {
- 
+
     String deviceInfo = App::getDeviceInfo(deviceId);
     relayTimer.updateRelays(deviceInfo);
 
@@ -153,7 +117,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   String pingTopic = deviceId + "/ping";
   if (strcmp(topic, pingTopic.c_str()) == 0) {
     String messageString = relayTimer.getStateMessage(deviceId, "ping");
-//    App::sendDeviceMessage(messageString);
+    App::sendDeviceMessage(messageString);
 
   }
 
@@ -195,14 +159,27 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
     }
 
+    if (doc.containsKey("is_reminders_active")) {
+
+      bool isActive = doc["is_reminders_active"];
+      relayTimer.setRemindersActive(relayIndex, isActive);
+      String messageString = relayTimer.getStateMessage(deviceId, "switchon");
+      Serial.println("App::sendDeviceMessage(messageString)");
+      Serial.println(messageString);
+      App::sendSlackMessage();
+      App::sendDeviceMessage(messageString);
+
+    }
+
     if (doc.containsKey("reminder")) {
       String startTime = doc["reminder"]["start_time"];
       int duration = doc["reminder"]["duration"];
       String repeatType = doc["reminder"]["repeat_type"];
+      bool isRemindersActive = doc["is_reminders_active"];
       relayTimer.addReminder(relayIndex, startTime, duration, repeatType);
 
       String messageString = relayTimer.getStateMessage(deviceId, "switchon");
-      App::sendDeviceMessage(messageString);
+      App::addReminderMessage(messageString);
 
     }
   }

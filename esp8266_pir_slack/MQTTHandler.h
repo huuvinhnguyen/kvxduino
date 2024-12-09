@@ -80,7 +80,9 @@ class MQTTHandler {
     }
 
   public:
-    String deviceId = String(ESP.getChipId());
+//    String deviceId = String(ESP.getChipId());
+    String deviceId = "esp8266_" + String(ESP.getChipId());
+
     MQTTHandler() : net(), client(net) {} // Khởi tạo PubSubClient với WiFiClient
     long lastReconnectMQTTAttempt = 0;
 
@@ -112,12 +114,11 @@ class MQTTHandler {
 
     bool isFirstConnection = true;
     void loopReconnectMQTT() {
-      uint32_t chipId = ESP.getChipId();
 
       Serial.println("reconnecting Mqtt");
 
       long now = millis();
-      if (isFirstConnection || (now - lastReconnectMQTTAttempt > 60000)) {
+      if (isFirstConnection || (now - lastReconnectMQTTAttempt > 15000)) {
         isFirstConnection = false;
         Serial.println("inside reconnecting Mqtt");
 

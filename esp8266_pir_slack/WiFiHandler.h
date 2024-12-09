@@ -25,6 +25,8 @@ class WiFiHandler {
       //if it does not connect it starts an access point with the specified name
       //here  "AutoConnectAP" with password "password"
       //and goes into a blocking loop awaiting configuration
+        wifiManager.setConfigPortalTimeout(180);
+
       if (!wifiManager.autoConnect("AutoConnectAP")) {
         Serial.println("failed to connect, we should reset as see if it connects");
         delay(3000);
