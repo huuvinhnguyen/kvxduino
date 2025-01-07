@@ -11,6 +11,7 @@
 #include <ESPmDNS.h>
 #include <RelayTimer.h>
 #include "time.h"
+#include "App.h"
 
 
 
@@ -32,6 +33,8 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 
   wifiHandler.setupWiFi();
+  relayTimer.setup();
+
   connector.setupBLE();
   connector.registerNotifyCallback(handleBLENotify);
   relayTimer.setup();
@@ -41,34 +44,21 @@ void setup() {
 }
 
 void loop() {
-  
+
   Serial.println("loop");
+  wifiHandler.loopConnectWiFi();
+  mqttHandler.loopConnectMQTT();
 
-  if (WiFi.status() == WL_CONNECTED) {
-    if (mqttHandler.connected()) {
-      mqttHandler.loopConnectMQTT();
-      Serial.println("loopConnectMQTT");
-
-
-    } else {
-      mqttHandler.loopReconnectMQTT();
-      Serial.println("loopReconnectMQTT");
-    }
-  } else {
-    Serial.println("loopConnectWiFi");
-
-    wifiHandler.loopConnectWiFi();
-  }
 
   connector.loopConnectBLE();
-  relayTimer.loopTriggerRelay();
+  relayTimer.loop([](String state, int index) {
+    App::sendSlackMessage(state, index);
+  });
 
   delay(1000);
 
 }
 
-//void handleBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic,
-//                     uint8_t* pData, size_t length, bool isNotify) {
 void handleBLENotify(String jsonString) {
 
 
@@ -98,7 +88,7 @@ void handleBLENotify(String jsonString) {
   Serial.println(temperature);
   Serial.print("Humidity: ");
   Serial.println(humidity);
-  jsonDoc["hub_model"] = "esp32"; 
+  jsonDoc["hub_model"] = "esp32";
   String payload;
   serializeJson(jsonDoc, payload);
   String topic = "dht" ;
@@ -107,67 +97,38 @@ void handleBLENotify(String jsonString) {
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
-  App::sendSlackMessage();
 
-  payload[length] = '\0';
+  relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
 
-  // Khởi tạo một bộ đệm để chứa payload
-  char buffer[length + 1];
-  memcpy(buffer, payload, length + 1);
+    String deviceId = mqttHandler.deviceId;
+    if (strcmp(topic, deviceId.c_str()) == 0) {
+      String deviceInfo = App::getDeviceInfo(deviceId);
+      relayTimer.updateRelays(deviceInfo);
+    }
 
-  // Khởi tạo một object JSON và parse payload
-  StaticJsonDocument<200> doc;
-  DeserializationError error = deserializeJson(doc, buffer);
+    String pingTopic = deviceId + "/ping";
+    if (strcmp(topic, pingTopic.c_str()) == 0) {
+      App::sendDeviceMessage(message);
+    }
 
-  // Kiểm tra lỗi parse
-  if (error) {
-    Serial.print("Failed to parse JSON: ");
-    Serial.println(error.c_str());
-    return;
-  }
+    String switchOnTopic = deviceId + "/switchon";
+    if (strcmp(topic, switchOnTopic.c_str()) == 0) {
 
-  // Truy cập các trường trong object JSON
-  const char* message = doc["message"];
-  Serial.print("Received message: ");
-  Serial.print(message);
+      String action = doc["action"];
+      if (action == "remove_reminder") {
+        App::sendDeviceMessage(message);
+      }
 
+      if (doc.containsKey("longlast") || 
+      doc.containsKey("switch_value") || 
+      doc.containsKey("is_reminders_active")) {
+        App::sendDeviceMessage(message);
+        App::sendSlackMessage();
+      }
 
-  Serial.print("Message arrived in topic: ");
-  Serial.println(topic);
-
-  Serial.print("Message:");
-  char *charArray = (char*)payload;
-  String str = (String)charArray;
-  Serial.print(str);
-
-  if (strcmp(topic + strlen(topic) - 6, "switch") == 0) {
-    int value = doc["value"];
-    relayTimer.relay.handleMessage("switch", String(value));
-  }
-
-  String timeTriggerTopic = deviceId + "/timetrigger";
-  if (strcmp(topic, timeTriggerTopic.c_str()) == 0) {
-    String value = doc["value"];
-    relayTimer.watchDog.setTimeString(value);
-    String jsonString = relayTimer.getStateMessage(deviceId);
-    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-  }
-
-  String longlastTopic = deviceId + "/longlast";
-  if (strcmp(topic, longlastTopic.c_str()) == 0) {
-    int value = doc["value"];
-    relayTimer.relay.longlast = value;
-    String jsonString = relayTimer.getStateMessage(deviceId);
-    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-  }
-
-  String switchOnTopic = deviceId + "/switchon";
-  if (strcmp(topic, switchOnTopic.c_str()) == 0) {
-    int longlast = doc["longlast"];
-    relayTimer.relay.longlast = longlast;
-    relayTimer.relay.switchOn();
-    String jsonString = relayTimer.getStateMessage(deviceId);
-    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-  }
-
+      if (doc.containsKey("reminder")) {
+        App::addReminderMessage(message);
+      }
+    }
+  }); 
 }
