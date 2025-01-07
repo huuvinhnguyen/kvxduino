@@ -1,7 +1,7 @@
 #include <PubSubClient.h>
 #include <WiFiClient.h>
-#include <WiFi.h>
-#include "app.h"
+
+//#include "app.h"
 
 //using MQTTCallback = void(*)(char*, byte*, unsigned int);
 using MQTTCallback = void(*)(char* topic, byte* payload, unsigned int length);
@@ -20,11 +20,8 @@ struct Configuration {
 } configuration;
 
 const char MQTT_HOST[] = "103.9.77.155";
-String deviceId = String(App::getChipId(), 10);
 
 
-WiFiClient net;
-PubSubClient client(net);
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 7 * 3600;
 const int   daylightOffset_sec = 0 ;
@@ -36,8 +33,16 @@ void NTPConnect(void) {
   Serial.print("Setting time using SNTP");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
+  unsigned long startMillis = millis(); // Record the start time
+  const unsigned long timeout = 10000;  // 10 seconds in milliseconds
+
   now = time(nullptr);
   while (now < nowish) {
+    if (millis() - startMillis >= timeout) {
+      Serial.println("Failed to set time. Restarting...");
+      ESP.restart(); // Restart the ESP8266
+      return; // Exit the function after restart command
+    }
     delay(500);
     Serial.print(".");
     now = time(nullptr);
@@ -54,10 +59,36 @@ void NTPConnect(void) {
 class MQTTHandler {
 
   private:
+    WiFiClient net;
+    PubSubClient client;
     static MQTTCallback callbackFunc;
+    String generateRandomUUID() {
+      // Generate random parts for the UUID (32-bit chunks)
+      uint32_t part1 = random(0xFFFFFFFF);  // First 32 bits
+      uint32_t part2 = random(0xFFFFFFFF);  // Second 32 bits
+      uint32_t part3 = random(0xFFFFFFFF);  // Third 32 bits
+      uint32_t part4 = random(0xFFFFFFFF);  // Fourth 32 bits
+
+      // Combine parts into a UUID string (8-4-4-4-12 format)
+      char uuid[37];  // UUID is 36 characters + null terminator
+      snprintf(uuid, sizeof(uuid), "%08X-%04X-%04X-%04X-%012X",
+               part1,  // First 8 characters
+               (uint16_t)(part2 >> 16), (uint16_t)(part2 & 0xFFFF), // Second 4 and Third 4 characters
+               (uint16_t)(part3 >> 16), (uint32_t)(part4));  // Fourth 4 characters and remaining 12 characters
+
+      return String(uuid);
+    }
 
   public:
+    //    String deviceId = String(ESP.getChipId());
+    #if defined(ESP8266)
+    String deviceId = "esp8266_" + String(ESP.getChipId());
+    #elif defined(ESP32)
+    String deviceId = "esp32" + String(getChipId());
+  
+    #endif
 
+    MQTTHandler() : net(), client(net) {} // Khởi tạo PubSubClient với WiFiClient
     long lastReconnectMQTTAttempt = 0;
 
     void registerCallback(MQTTCallback callback) {
@@ -73,25 +104,29 @@ class MQTTHandler {
     }
 
     void loopConnectMQTT() {
+
       client.loop();
+
+      if (client.connected()) {
+        Serial.println("loopConnectMQTT");
+
+      } else {
+        loopReconnectMQTT();
+        Serial.println("loopReconnectMQTT");
+      }
 
     }
 
+    bool isFirstConnection = true;
     void loopReconnectMQTT() {
-      uint32_t chipId = 0;
-      for (int i = 0; i < 17; i = i + 8) {
-        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-      }
-
-      Serial.printf("ESP32 Chip model = %s Rev %d\n", ESP.getChipModel(), ESP.getChipRevision());
-      Serial.printf("This chip has %d cores\n", ESP.getChipCores());
-      Serial.print("Chip ID: ");
-      Serial.println(chipId);
 
       Serial.println("reconnecting Mqtt");
 
       long now = millis();
-      if (now - lastReconnectMQTTAttempt > 60000) {
+      if (isFirstConnection || (now - lastReconnectMQTTAttempt > 15000)) {
+        isFirstConnection = false;
+        Serial.println("inside reconnecting Mqtt");
+
 
         lastReconnectMQTTAttempt = now;
         // Attempt to connect
@@ -105,11 +140,17 @@ class MQTTHandler {
     }
 
     uint32_t getChipId() {
+    #if defined(ESP32)
       uint32_t chipId = 0;
       for (int i = 0; i < 17; i = i + 8) {
         chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
       }
       return chipId;
+    #elif defined(ESP8266)
+      return ESP.getChipId();
+    #else
+      #error "Unsupported platform. This code supports only ESP32 and ESP8266."
+    #endif
     }
 
     void connectMQTT() {
@@ -131,16 +172,19 @@ class MQTTHandler {
 
       Serial.println("Connecting to MQTT...");
 
-      uint32_t chipId = getChipId();
-      String clientId = String(chipId);
+      //      uint32_t chipId = getChipId();
+      String clientId = generateRandomUUID();
+
 
       if (client.connect(clientId.c_str())) {
 
         Serial.println("connected");
-        App::sendSlackMessage();
+        client.subscribe(deviceId.c_str(), 1);
+
         String jsonString = getInitialMessage(deviceId);
-        client.publish(deviceId.c_str(), jsonString.c_str(), true);
-        
+        client.publish(deviceId.c_str(), jsonString.c_str(), false);
+        //        App::sendDeviceMessage(jsonString);
+
         String switchTopic = deviceId + "/switch";
         client.subscribe(switchTopic.c_str(), 1);
 
@@ -150,12 +194,13 @@ class MQTTHandler {
         String timeTriggerTopic = deviceId + "/timetrigger";
         client.subscribe(timeTriggerTopic.c_str(), 1);
 
-        //    String jsonString = getStateMessage(relay);
-        //    client.publish(deviceId.c_str(), jsonString.c_str(), true);
-        client.subscribe(deviceId.c_str(), 1);
+
 
         String longlast = deviceId + "/longlast";
         client.subscribe(longlast.c_str(), 1);
+
+        String ping = deviceId + "/ping";
+        client.subscribe(ping.c_str(), 1);
 
       } else {
 
@@ -165,11 +210,11 @@ class MQTTHandler {
     }
 
     void publish(const char* topic, const char* message, bool isRetained) {
-      String switchonTopic = deviceId + "/" + topic;
+      //      String switchonTopic = deviceId + "/" + topic;
       if (client.connected()) {
-        client.publish(switchonTopic.c_str(), message, isRetained);
+        client.publish(topic, message, isRetained);
         Serial.print("Message published to topic: ");
-        Serial.print(switchonTopic);
+        Serial.print(topic);
         Serial.print(" Message: ");
         Serial.println(message);
       } else {
