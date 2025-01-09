@@ -278,4 +278,114 @@ class RelayTimer {
       }
     }
 
+    void handleMQTTCallback(String deviceId, char* topic, byte* payload, unsigned int length, std::function<void(StaticJsonDocument<500>, char*, String)> callback) {
+      payload[length] = '\0';
+
+      // Khởi tạo một bộ đệm để chứa payload
+      char buffer[length + 1];
+      memcpy(buffer, payload, length + 1);
+
+      // Khởi tạo một object JSON và parse payload
+      StaticJsonDocument<500> doc;
+      DeserializationError error = deserializeJson(doc, buffer);
+
+      // Kiểm tra lỗi parse
+      if (error) {
+        Serial.print("Failed to parse JSON: ");
+        Serial.println(error.c_str());
+        return;
+      }
+
+      // Truy cập các trường trong object JSON
+      const char* message = doc["message"];
+      Serial.print("Received message: ");
+      Serial.print(message);
+
+
+      Serial.print("Message arrived in topic: ");
+      Serial.println(topic);
+
+      Serial.print("Message:");
+      char *charArray = (char*)payload;
+      String str = (String)charArray;
+      Serial.print(str);
+
+
+      String pingTopic = deviceId + "/ping";
+      if (strcmp(topic, pingTopic.c_str()) == 0) {
+        String messageString = getStateMessage(deviceId, "ping");
+        //        App::sendDeviceMessage(messageString);
+        callback(doc, topic, messageString);
+
+      }
+
+      String switchOnTopic = deviceId + "/switchon";
+      if (strcmp(topic, switchOnTopic.c_str()) == 0) {
+
+        int relayIndex = doc["relay_index"];
+        String action = doc["action"];
+        if (action == "remove_reminder") {
+          String startTime = doc["start_time"];
+
+          removeReminder(relayIndex, startTime, [this, doc, topic, deviceId, callback]() {
+            String messageString = this->getStateMessage(deviceId, "switchon");
+            //            App::sendDeviceMessage(messageString);
+            callback(doc, topic, messageString);
+          });
+
+        }
+
+        if (doc.containsKey("longlast")) {
+          int longlast = doc["longlast"];
+          setSwitchOnLast(relayIndex, longlast);
+          String messageString = getStateMessage(deviceId, "switchon");
+          //          App::sendDeviceMessage(messageString);
+          //          App::sendSlackMessage();
+          callback(doc, topic, messageString);
+
+        }
+
+        if (doc.containsKey("switch_value")) {
+          Serial.println("step 1: App::sendDeviceMessage(messageString)");
+
+          bool isOn = doc["switch_value"];
+          setOn(relayIndex, isOn);
+          String messageString = getStateMessage(deviceId, "switchon");
+          Serial.println("App::sendDeviceMessage(messageString)");
+          Serial.println(messageString);
+
+          //          App::sendSlackMessage();
+          //          App::sendDeviceMessage(messageString);
+          callback(doc, topic, messageString);
+
+        }
+
+        if (doc.containsKey("is_reminders_active")) {
+
+          bool isActive = doc["is_reminders_active"];
+          setRemindersActive(relayIndex, isActive);
+          String messageString = getStateMessage(deviceId, "switchon");
+          Serial.println("App::sendDeviceMessage(messageString)");
+          Serial.println(messageString);
+          //          App::sendSlackMessage();
+          //          App::sendDeviceMessage(messageString);
+          callback(doc, topic, messageString);
+
+        }
+
+        if (doc.containsKey("reminder")) {
+          String startTime = doc["reminder"]["start_time"];
+          int duration = doc["reminder"]["duration"];
+          String repeatType = doc["reminder"]["repeat_type"];
+          bool isRemindersActive = doc["is_reminders_active"];
+          addReminder(relayIndex, startTime, duration, repeatType);
+
+          String messageString = getStateMessage(deviceId, "switchon");
+          //          App::addReminderMessage(messageString);
+          callback(doc, topic, messageString);
+
+        }
+      }
+    }
+
 };
