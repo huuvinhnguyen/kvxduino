@@ -1,23 +1,39 @@
+#if defined(ESP32)
+#include <HTTPClient.h>
+
+#elif defined(ESP8266)
 #include <ESP8266HTTPClient.h>
+#endif
+
 
 class App {
 
   public:
-    // Method to retrieve Chip ID
     static uint32_t getChipId() {
+#if defined(ESP32)
+      uint32_t chipId = 0;
+      for (int i = 0; i < 17; i = i + 8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+      }
+      return chipId;
+#elif defined(ESP8266)
       return ESP.getChipId();
+#else
+#error "Unsupported platform. This code supports only ESP32 and ESP8266."
+#endif
+    }
+    static String getDeviceId() {
+      return "esp8266_" + String(getChipId());
     }
 
-    static String getDeviceId() {
-      return "esp8266_" + String(ESP.getChipId());
-    }
+
+
 
 
     // Add any other common methods for your application here
 
     static void sendSlackMessage() {
 
-      uint32_t chipId = ESP.getChipId();
 
       const char* webhookUrl = "http://103.9.77.155/devices/notify";
 
@@ -61,7 +77,6 @@ class App {
 
     static void sendSlackMessage(String state, int index) {
 
-      uint32_t chipId = ESP.getChipId();
 
       const char* webhookUrl = "http://103.9.77.155/devices/notify";
 
@@ -162,7 +177,7 @@ class App {
       }
     }
 
-    static void sendPirSlackMessage() {
+    static void sendPirSlackMessage(String deviceId) {
 
       const char* webhookUrl = "http://103.9.77.155/devices/notify";
 
@@ -176,7 +191,7 @@ class App {
         // Tạo đối tượng JSON
         time_t now = time(nullptr);
         DynamicJsonDocument jsonDoc(256);
-        jsonDoc["id"] =  String(ESP.getChipId());
+        jsonDoc["id"] =  deviceId;
         jsonDoc["message"] = "xin_chao";
         jsonDoc["time"] = now;
         jsonDoc["model"] = "esp8266";
