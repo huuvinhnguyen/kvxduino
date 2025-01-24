@@ -30,6 +30,7 @@ void setup() {
 
   wifiHandler.setupWiFi();
   relayTimer.setup();
+  mqttHandler.setup(App::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
 
 }
@@ -95,9 +96,9 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
         App::sendDeviceMessage(message);
       }
 
-      if (doc.containsKey("longlast") || 
-      doc.containsKey("switch_value") || 
-      doc.containsKey("is_reminders_active")) {
+      if (doc.containsKey("longlast") ||
+          doc.containsKey("switch_value") ||
+          doc.containsKey("is_reminders_active")) {
         App::sendDeviceMessage(message);
         App::sendSlackMessage();
       }
@@ -106,5 +107,5 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
         App::addReminderMessage(message);
       }
     }
-  }); 
+  });
 }

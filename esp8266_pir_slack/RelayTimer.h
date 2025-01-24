@@ -86,24 +86,22 @@ class RelayTimer {
     void setup() {
 
       Relay relay1;
-      relay1.setup(D7); // Den truoc san
+      relay1.setup(D4); // Den truoc san
       relays.push_back(relay1);
 
-//      Relay relay1;
-//      relay1.setup(4);
-//      relays.push_back(relay1);
-//
-//      Relay relay2;
-//      relay2.setup(14);
-//      relays.push_back(relay2);
-//
-//      Relay relay3;
-//      relay3.setup(D6);
-//      relays.push_back(relay3);
-//
-//      Relay relay4;
-//      relay4.setup(D7);
-//      relays.push_back(relay4);
+      Relay relay2;
+      relay2.setup(D5); // Led pin
+      relays.push_back(relay2);
+
+
+
+      Relay relay3;
+      relay3.setup(D6);
+      relays.push_back(relay3);
+
+      Relay relay4;
+      relay4.setup(D7);
+      relays.push_back(relay4);
 
       configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -309,6 +307,14 @@ class RelayTimer {
       char *charArray = (char*)payload;
       String str = (String)charArray;
       Serial.print(str);
+
+
+
+      if (strcmp(topic, deviceId.c_str()) == 0) {
+
+        callback(doc, topic, "");
+
+      }
 
 
       String pingTopic = deviceId + "/ping";
