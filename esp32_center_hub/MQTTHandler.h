@@ -91,6 +91,11 @@ class MQTTHandler {
     MQTTHandler() : net(), client(net) {} // Khởi tạo PubSubClient với WiFiClient
     long lastReconnectMQTTAttempt = 0;
 
+    void setup(String deviceId) {
+      this->deviceId = deviceId;
+
+    }
+
     void registerCallback(MQTTCallback callback) {
       callbackFunc = callback;
     }

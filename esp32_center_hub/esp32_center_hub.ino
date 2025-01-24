@@ -33,11 +33,10 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 
   wifiHandler.setupWiFi();
-  relayTimer.setup();
-
   connector.setupBLE();
   connector.registerNotifyCallback(handleBLENotify);
   relayTimer.setup();
+  mqttHandler.setup(App::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
 
   Serial.println("setup");
