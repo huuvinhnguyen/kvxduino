@@ -320,7 +320,6 @@ class RelayTimer {
       String pingTopic = deviceId + "/ping";
       if (strcmp(topic, pingTopic.c_str()) == 0) {
         String messageString = getStateMessage(deviceId, "ping");
-        //        App::sendDeviceMessage(messageString);
         callback(doc, topic, messageString);
 
       }
@@ -335,7 +334,6 @@ class RelayTimer {
 
           removeReminder(relayIndex, startTime, [this, doc, topic, deviceId, callback]() {
             String messageString = this->getStateMessage(deviceId, "switchon");
-            //            App::sendDeviceMessage(messageString);
             callback(doc, topic, messageString);
           });
 
@@ -345,26 +343,28 @@ class RelayTimer {
           int longlast = doc["longlast"];
           setSwitchOnLast(relayIndex, longlast);
           String messageString = getStateMessage(deviceId, "switchon");
-          //          App::sendDeviceMessage(messageString);
-          //          App::sendSlackMessage();
+          JsonArray relayIndexes = doc["relay_indexes"].as<JsonArray>();
+          for (int index : relayIndexes) {
+            setSwitchOnLast(index, longlast);
+          }
           callback(doc, topic, messageString);
 
         }
 
         if (doc.containsKey("switch_value")) {
-          Serial.println("step 1: App::sendDeviceMessage(messageString)");
-
           bool isOn = doc["switch_value"];
           setOn(relayIndex, isOn);
           String messageString = getStateMessage(deviceId, "switchon");
-          Serial.println("App::sendDeviceMessage(messageString)");
-          Serial.println(messageString);
+          JsonArray relayIndexes = doc["relay_indexes"].as<JsonArray>();
+          for (int index : relayIndexes) {
+            setOn(index, isOn);
+          }
 
-          //          App::sendSlackMessage();
-          //          App::sendDeviceMessage(messageString);
           callback(doc, topic, messageString);
 
         }
+
+
 
         if (doc.containsKey("is_reminders_active")) {
 
@@ -373,8 +373,6 @@ class RelayTimer {
           String messageString = getStateMessage(deviceId, "switchon");
           Serial.println("App::sendDeviceMessage(messageString)");
           Serial.println(messageString);
-          //          App::sendSlackMessage();
-          //          App::sendDeviceMessage(messageString);
           callback(doc, topic, messageString);
 
         }
@@ -387,7 +385,6 @@ class RelayTimer {
           addReminder(relayIndex, startTime, duration, repeatType);
 
           String messageString = getStateMessage(deviceId, "switchon");
-          //          App::addReminderMessage(messageString);
           callback(doc, topic, messageString);
 
         }
