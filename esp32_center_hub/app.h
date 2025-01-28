@@ -23,7 +23,7 @@ class App {
 #endif
     }
     static String getDeviceId() {
-      return "esp8266_" + String(getChipId());
+      return "esp32_" + String(getChipId());
     }
 
 

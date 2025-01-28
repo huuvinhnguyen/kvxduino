@@ -86,22 +86,36 @@ class RelayTimer {
     void setup() {
 
       Relay relay1;
-      relay1.setup(8); // Den truoc san
+      relay1.setup(5); // Den truoc san
       relays.push_back(relay1);
 
-//      Relay relay2;
-//      relay2.setup(D5); // Led pin
-//      relays.push_back(relay2);
-//
-//
-//
-//      Relay relay3;
-//      relay3.setup(D6);
-//      relays.push_back(relay3);
-//
-//      Relay relay4;
-//      relay4.setup(D7);
-//      relays.push_back(relay4);
+      Relay relay2;
+      relay2.setup(6);
+      relays.push_back(relay2);
+
+      Relay relay3;
+      relay3.setup(7);
+      relays.push_back(relay3);
+      //
+      Relay relay4;
+      relay4.setup(8);
+      relays.push_back(relay4);
+
+      Relay relay5;
+      relay5.setup(9);
+      relays.push_back(relay5);
+
+      Relay relay6;
+      relay6.setup(2);
+      relays.push_back(relay6);
+
+      Relay relay7;
+      relay7.setup(3);
+      relays.push_back(relay7);
+
+      Relay relay8;
+      relay8.setup(4);
+      relays.push_back(relay8);
 
       configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -345,23 +359,24 @@ class RelayTimer {
           int longlast = doc["longlast"];
           setSwitchOnLast(relayIndex, longlast);
           String messageString = getStateMessage(deviceId, "switchon");
-          //          App::sendDeviceMessage(messageString);
-          //          App::sendSlackMessage();
+          JsonArray relayIndexes = doc["relay_indexes"].as<JsonArray>();
+          for (int index : relayIndexes) {
+            setSwitchOnLast(index, longlast);
+          }
           callback(doc, topic, messageString);
 
         }
 
         if (doc.containsKey("switch_value")) {
-          Serial.println("step 1: App::sendDeviceMessage(messageString)");
-
           bool isOn = doc["switch_value"];
           setOn(relayIndex, isOn);
           String messageString = getStateMessage(deviceId, "switchon");
           Serial.println("App::sendDeviceMessage(messageString)");
           Serial.println(messageString);
-
-          //          App::sendSlackMessage();
-          //          App::sendDeviceMessage(messageString);
+          JsonArray relayIndexes = doc["relay_indexes"].as<JsonArray>();
+          for (int index : relayIndexes) {
+            setOn(index, isOn);
+          }
           callback(doc, topic, messageString);
 
         }
@@ -373,8 +388,6 @@ class RelayTimer {
           String messageString = getStateMessage(deviceId, "switchon");
           Serial.println("App::sendDeviceMessage(messageString)");
           Serial.println(messageString);
-          //          App::sendSlackMessage();
-          //          App::sendDeviceMessage(messageString);
           callback(doc, topic, messageString);
 
         }
