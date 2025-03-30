@@ -10,6 +10,9 @@
 #include "RelayTimer.h"
 #include "MQTTHandler.h"
 #include "App.h"
+#include "TimeClock.h"
+#include "Esp8266Server.h"
+
 
 ESP8266WebServer server(80);
 
@@ -19,6 +22,8 @@ int val;
 WiFiHandler wifiHandler;
 RelayTimer relayTimer;
 MQTTHandler mqttHandler;
+TimeClock timeClock;
+Esp8266Server espServer;
 
 uint8_t ledPin = 17;
 
@@ -26,23 +31,39 @@ uint8_t ledPin = 17;
 void setup() {
 
   Serial.begin(115200);
-  pinMode(pinPir2, INPUT);
+  //  pinMode(pinPir2, INPUT);
 
-  wifiHandler.setupWiFi();
+  //  wifiHandler.setupWiFi();
   relayTimer.setup();
-  mqttHandler.setup(App::getDeviceId());
-  mqttHandler.registerCallback(handleMQTTCallback);
+  //  mqttHandler.setup(App::getDeviceId());
+  //    mqttHandler.registerCallback(handleMQTTCallback);
+
+  espServer.setup();
+  espServer.registerCallback(handleServerSetTimeCallback);
+  espServer.registerReminderCallback(handleServerSetReminderCallback);
+  espServer.registerSwitchOnLonglastCallback(handleServerSwitchOnLonglastCallback);
+  espServer.registerSwitchOnCallback(handleServerSwitchOnCallback);
+  espServer.registerRemoveAllReminders(handleRemoveAllRemindersCallback);
+  timeClock.setup();
+
 
 }
 
 void loop() {
 
-  wifiHandler.loopConnectWiFi();
-  mqttHandler.loopConnectMQTT();
-  server.handleClient();
-  relayTimer.loop([](String state, int index) {
-    App::sendSlackMessage(state, index);
+  //  wifiHandler.loopConnectWiFi();
+  //  mqttHandler.loopConnectMQTT();
+  //  server.handleClient();
+  //  relayTimer.loop([](String state, int index) {
+  //    App::sendSlackMessage(state, index);
+  //  });
+  espServer.loop();
+
+  timeClock.loop([](Time t) {
+    espServer.timing(t.yr, t.mon, t.date, t.hr, t.min, t.sec);
+    espServer.updateDeviceInfo(timeClock.getStateMessage());
   });
+
   delay(1000);
 
 }
@@ -71,7 +92,31 @@ void checkPir() {
   }
 }
 
+void handleServerSetTimeCallback(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second) {
+  timeClock.setTime(year, month, day, hour, minute, second);
+}
 
+void handleServerSetReminderCallback(int relayIndex, String startTime, int duration, String repeatType) {
+  timeClock.addReminder(relayIndex, startTime, duration, repeatType);
+  timeClock.saveReminderData();
+}
+
+void handleServerSwitchOnCallback(int relayIndex, bool isOn) {
+  Serial.println("handleServerSwitchOnCallback: ");
+  Serial.println(isOn);
+  Serial.println("relayIndex: ");
+  Serial.println(relayIndex);
+  timeClock.setOn(relayIndex, isOn);
+}
+
+void handleServerSwitchOnLonglastCallback(int relayIndex, int longlast) {
+  timeClock.setSwitchOnLast(relayIndex, longlast);
+}
+
+void handleRemoveAllRemindersCallback() {
+  timeClock.removeAllReminders();
+  
+}
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 

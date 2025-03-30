@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP8266 Time Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: auto;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f4f4f4;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 10px;
+            width: 100%;
+            background: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .message {
+            margin-top: 10px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>ESP8266 Time Manager</h1>
+
+    <div class="container">
+        <h2>Current Date & Time</h2>
+        <p><b>Datetime:</b> <span id="datetime">--</span></p>
+
+        <h2>Set Time</h2>
+        <form id="timeForm">
+            <label>Select Date & Time:</label>
+            <input type="datetime-local" id="datetimePicker" required>
+            <button type="submit">Set Time</button>
+        </form>
+
+        <p id="message" class="message"></p>
+    </div>
+
+    <h2>Relay Control</h2>
+    <div class="container">
+        <label for="relayIndex">Select Relay:</label>
+        <select id="relayIndex">
+            <option value="0">Relay 1</option>
+            <option value="1">Relay 2</option>
+        </select>
+
+        <button onclick="toggleRelay(true)">Turn On</button>
+        <button onclick="toggleRelay(false)">Turn Off</button>
+
+        <p id="relayMessage" class="message"></p>
+    </div>
+
+    <div class="container">
+        <h3>Thêm Hẹn Giờ</h3>
+        <label for="relayIndex">Select Relay:</label>
+        <select id="relayIndex">
+            <option value="0">Relay 1</option>
+            <option value="1">Relay 2</option>
+        </select>
+
+        <label>Start Time: </label>
+        <input type="datetime-local" id="startTime"><br>
+        <label>Duration (phút): </label>
+        <input type="number" id="duration" placeholder="3"><br>
+
+        <label>Repeat Type: </label>
+        <select id="repeatType">
+            <option value="daily">Hàng ngày</option>
+            <option value="weekly">Hàng tuần</option>
+            <option value="monthly">Hàng tháng</option>
+        </select><br>
+
+        <button onclick="addReminder()">Thêm Hẹn Giờ</button>
+        <p id="statusMessage"></p>
+    </div>
+
+    <div class="container">
+        <h3>Danh Sách Hẹn Giờ</h3>
+        <div id="reminderList"></div>
+        <p id="deleteMessage" class="message"></p>
+        <button onclick="deleteAllReminders()">Xoá Hết Hẹn Giờ</button>
+    </div>
+
+    <script src="main.js"></script>
+
+</body>
+
+</html>
