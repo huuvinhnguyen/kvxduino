@@ -97,25 +97,31 @@
             <option value="0">Relay 1</option>
             <option value="1">Relay 2</option>
         </select>
-
+    
         <label>Start Time: </label>
         <input type="datetime-local" id="startTime"><br>
         <label>Duration (phút): </label>
         <input type="number" id="duration" placeholder="3"><br>
-
+    
         <label>Repeat Type: </label>
         <select id="repeatType">
             <option value="daily">Hàng ngày</option>
             <option value="weekly">Hàng tuần</option>
             <option value="monthly">Hàng tháng</option>
         </select><br>
-
+    
         <button onclick="addReminder()">Thêm Hẹn Giờ</button>
+        <button onclick="toggleReminders()">Bật/Tắt Reminders</button>
         <p id="statusMessage"></p>
+        <p id="remindersStatusMessage"></p>
     </div>
 
     <div class="container">
         <h3>Danh Sách Hẹn Giờ</h3>
+        <div>
+            <p>Status: </p>
+            <p id="reminderStatus"></p>
+        </div>
         <div id="reminderList"></div>
         <p id="deleteMessage" class="message"></p>
         <button onclick="deleteAllReminders()">Xoá Hết Hẹn Giờ</button>

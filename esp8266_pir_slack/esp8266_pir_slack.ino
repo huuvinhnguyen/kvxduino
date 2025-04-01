@@ -44,8 +44,8 @@ void setup() {
   espServer.registerSwitchOnLonglastCallback(handleServerSwitchOnLonglastCallback);
   espServer.registerSwitchOnCallback(handleServerSwitchOnCallback);
   espServer.registerRemoveAllReminders(handleRemoveAllRemindersCallback);
+  espServer.registerSetRemindersActive(handleSetRemindersActiveCallback);
   timeClock.setup();
-
 
 }
 
@@ -102,10 +102,6 @@ void handleServerSetReminderCallback(int relayIndex, String startTime, int durat
 }
 
 void handleServerSwitchOnCallback(int relayIndex, bool isOn) {
-  Serial.println("handleServerSwitchOnCallback: ");
-  Serial.println(isOn);
-  Serial.println("relayIndex: ");
-  Serial.println(relayIndex);
   timeClock.setOn(relayIndex, isOn);
 }
 
@@ -115,7 +111,10 @@ void handleServerSwitchOnLonglastCallback(int relayIndex, int longlast) {
 
 void handleRemoveAllRemindersCallback() {
   timeClock.removeAllReminders();
-  
+}
+
+void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
+  timeClock.setRemindersActive(relayIndex, isActive);
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {

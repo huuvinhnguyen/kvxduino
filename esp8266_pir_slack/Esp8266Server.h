@@ -8,6 +8,7 @@ using ServerSetReminderCallback = void(*)(int relayIndex, String startTime, int 
 using ServerSwitchOnLonglastCallback = void(*)(int relayIndex, int longlast);
 using ServerSwitchOnCallback = void(*)(int relayIndex, bool isOn);
 using ServerRemoveAllRemindersCallback = void(*)(void);
+using ServerSetRemindersActiveCallback = void(*)(int relayIndex, bool isActive);
 
 class Esp8266Server {
 
@@ -26,6 +27,7 @@ class Esp8266Server {
     static ServerSwitchOnLonglastCallback switchOnLonglastCallbackFunc;
     static ServerSwitchOnCallback switchOnCallbackFunc;
     static ServerRemoveAllRemindersCallback removeAllRemindersCallbackFunc;
+    static ServerSetRemindersActiveCallback setRemindersActiveCallbackFunc;
     ServerTime serverTime;
     String deviceInfo;
     void setupFilesServer() {
@@ -78,11 +80,10 @@ class Esp8266Server {
         this->handleRemoveAllReminders();
       });
 
-      // Hien thi thoi gian hien tai
+      server.on("/set_reminders_active", HTTP_POST, [this]() {
+        this->handleSetRemindersActive();
+      });
 
-      // Hien thi danh sach hen gio
-
-      // Xoa list hen gio
     }
   public:
     ESP8266WebServer server;
@@ -92,7 +93,8 @@ class Esp8266Server {
 
     void setup() {
 
-      WiFi.softAP("ESP8266123");
+      String ssid = "KVX" + String(ESP.getChipId());
+      WiFi.softAP(ssid.c_str());
       IPAddress myIP = WiFi.softAPIP();
       Serial.print("AP IP address: ");
       Serial.println(myIP); // Thường là 192.168.4.1
@@ -269,6 +271,29 @@ class Esp8266Server {
       server.send(200, "application/json", "{\"status\":\"removeAllRemindersCallbackFunc did activate\"}");
     }
 
+    void handleSetRemindersActive() {
+
+      if (server.hasArg("plain") == false) {
+        server.send(400, "application/json", "{\"error\":\"No data received\"}");
+        return;
+      }
+
+      // Đọc JSON từ request
+      DynamicJsonDocument doc(256);
+      DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+      if (error) {
+        server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+      }
+
+      int relayIndex = doc["relay_index"];
+      bool isOn = doc["is_reminders_active"];
+      setRemindersActiveCallbackFunc(relayIndex, isOn);
+      server.send(200, "application/json", "{\"status\":\"Relay switch updated\"}");
+
+    }
+
     void registerCallback(ServerSetTimeCallback callback) {
       setTimeCallbackFunc = callback;
     }
@@ -287,6 +312,10 @@ class Esp8266Server {
 
     void registerRemoveAllReminders(ServerRemoveAllRemindersCallback callback) {
       removeAllRemindersCallbackFunc = callback;
+    }
+
+    void registerSetRemindersActive(ServerSetRemindersActiveCallback callback) {
+      setRemindersActiveCallbackFunc = callback;
     }
 
     const int max_ws_client = 5;
@@ -330,3 +359,4 @@ ServerSetReminderCallback Esp8266Server::setReminderCallbackFunc = nullptr;
 ServerSwitchOnLonglastCallback Esp8266Server::switchOnLonglastCallbackFunc = nullptr;
 ServerSwitchOnCallback Esp8266Server::switchOnCallbackFunc = nullptr;
 ServerRemoveAllRemindersCallback Esp8266Server::removeAllRemindersCallbackFunc = nullptr;
+ServerSetRemindersActiveCallback Esp8266Server::setRemindersActiveCallbackFunc = nullptr;

@@ -180,6 +180,8 @@ function displayReminders(relays) {
             return;
         }
 
+        document.getElementById("reminderStatus").textContent = relay.is_reminders_active 
+
         relay.reminders.forEach((reminder, reminderIndex) => {
             if (reminder.start_time === "") return; // Bỏ qua reminders không hợp lệ
 
@@ -219,5 +221,39 @@ function deleteAllReminders() {
         console.error("Error:", error);
         document.getElementById("deleteMessage").textContent = "Lỗi khi gọi API xoá hẹn giờ!";
         document.getElementById("deleteMessage").style.color = "red";
+    });
+}
+
+function toggleReminders() {
+    const relayIndex = parseInt(document.getElementById("relayIndex").value);
+    const reminderStatusElement = document.getElementById("reminderStatus");
+    const currentStatus = reminderStatusElement.textContent === "Bật"; // Kiểm tra trạng thái hiện tại
+    const isRemindersActive = !currentStatus; // Đảo trạng thái hiện tại
+
+    const data = {
+        relay_index: relayIndex,
+        is_reminders_active: isRemindersActive
+    };
+
+    fetch("/set_reminders_active", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            reminderStatusElement.textContent = isRemindersActive ? "Bật" : "Tắt"; // Cập nhật trạng thái hiển thị
+            document.getElementById("remindersStatusMessage").textContent = "Reminders đã được cập nhật!";
+            document.getElementById("remindersStatusMessage").style.color = "green";
+        } else {
+            document.getElementById("remindersStatusMessage").textContent = "Lỗi khi cập nhật reminders!";
+            document.getElementById("remindersStatusMessage").style.color = "red";
+        }
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        document.getElementById("remindersStatusMessage").textContent = "Lỗi khi gọi API!";
+        document.getElementById("remindersStatusMessage").style.color = "red";
     });
 }
