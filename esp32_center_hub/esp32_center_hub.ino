@@ -12,10 +12,10 @@
 #include <RelayTimer.h>
 #include "time.h"
 #include "App.h"
+#include "esp32_pir.h"
 
 
 
-const int PIR_SENSOR_OUTPUT_PIN = 3;
 #define LED_BUILTIN 8
 
 int countDevice = 0;
@@ -25,6 +25,7 @@ BLEConnector connector;
 MQTTHandler mqttHandler;
 WiFiHandler wifiHandler;
 RelayTimer relayTimer;
+Pir pir;
 
 void setup() {
   Serial.begin(115200);
@@ -35,6 +36,8 @@ void setup() {
   relayTimer.setup();
   mqttHandler.setup(App::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
+  pir.setupPir();
+  pir.registerCallback(handlePirCallback);
 
   Serial.println("setup");
 }
@@ -50,6 +53,8 @@ void loop() {
   relayTimer.loop([](String state, int index) {
     App::sendSlackMessage(state, index);
   });
+
+  pir.loopPir();
 
   delay(1000);
 
@@ -127,4 +132,12 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       }
     }
   }); 
+}
+
+void handlePirCallback() {
+    Serial.println("Object Detected 222");
+    String deviceId = mqttHandler.deviceId;
+//    App::sendSlackMessage();
+    App::sendTrigger(deviceId);
+
 }
