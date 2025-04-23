@@ -36,6 +36,8 @@ void setup() {
   relayTimer.setup();
   mqttHandler.setup(App::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
+  mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
+
   pir.setupPir();
   pir.registerCallback(handlePirCallback);
 
@@ -50,8 +52,10 @@ void loop() {
 
 
   connector.loopConnectBLE();
-  relayTimer.loop([](String state, int index) {
+  relayTimer.loop([](String state, int index, uint8_t value) {
     App::sendSlackMessage(state, index);
+    String deviceId = mqttHandler.deviceId;
+    App::switchRelayOn(deviceId, index, value);
   });
 
   pir.loopPir();
@@ -102,14 +106,17 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String deviceId = mqttHandler.deviceId;
-    if (strcmp(topic, deviceId.c_str()) == 0) {
+    String refreshTopic = deviceId + "/refresh";
+    if (strcmp(topic, refreshTopic.c_str()) == 0) {
       String deviceInfo = App::getDeviceInfo(deviceId);
+      Serial.println("deviceInfo: ");
+      Serial.println(deviceInfo);
       relayTimer.updateRelays(deviceInfo);
     }
 
     String pingTopic = deviceId + "/ping";
     if (strcmp(topic, pingTopic.c_str()) == 0) {
-      App::sendDeviceMessage(message);
+//      App::sendDeviceMessage(message);
     }
 
     String switchOnTopic = deviceId + "/switchon";
@@ -117,13 +124,13 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
       String action = doc["action"];
       if (action == "remove_reminder") {
-        App::sendDeviceMessage(message);
+//        App::sendDeviceMessage(message);
       }
 
-      if (doc.containsKey("longlast") || 
-      doc.containsKey("switch_value") || 
-      doc.containsKey("is_reminders_active")) {
-        App::sendDeviceMessage(message);
+      if (doc.containsKey("longlast") ||
+          doc.containsKey("switch_value") ||
+          doc.containsKey("is_reminders_active")) {
+//        App::sendDeviceMessage(message);
         App::sendSlackMessage();
       }
 
@@ -131,13 +138,23 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
         App::addReminderMessage(message);
       }
     }
-  }); 
+  });
 }
 
 void handlePirCallback() {
-    Serial.println("Object Detected 222");
-    String deviceId = mqttHandler.deviceId;
-//    App::sendSlackMessage();
-    App::sendTrigger(deviceId);
+  Serial.println("Object Detected 222");
+  String deviceId = mqttHandler.deviceId;
+  //    App::sendSlackMessage();
+  App::sendTrigger(deviceId);
+
+}
+
+void handleMQTTDidFinishConnectCallback() {
+
+  Serial.println("handleMQTTDidFinishCallback");
+  String deviceId = mqttHandler.deviceId;
+  String deviceInfo = App::getDeviceInfo(deviceId);
+
+  relayTimer.updateRelays(deviceInfo);
 
 }

@@ -68,6 +68,38 @@ class RelayTimer {
       return false;
     }
 
+    bool isMessageTimeout(StaticJsonDocument<500> &doc, unsigned long timeoutSeconds = 60) {
+      if (!doc.containsKey("sent_time")) {
+        Serial.println("No sent_time in message. Cannot check timeout.");
+        return true;
+      }
+
+      String sentTimeStr = doc["sent_time"]; // ví dụ "2025-04-22 17:00:00"
+      Serial.println("Sent time: ");
+      Serial.println(sentTimeStr);
+      struct tm tm;
+      if (!strptime(sentTimeStr.c_str(), "%Y-%m-%d %H:%M:%S", &tm)) {
+        Serial.println("Failed to parse sent_time format. Ignoring timeout check.");
+        return true; // Parse lỗi cũng cho pass
+      }
+
+      time_t sentTime = mktime(&tm);
+      time_t now = time(nullptr); // Giờ hiện tại của ESP32
+
+      double diffInSeconds = difftime(now, sentTime);
+
+      Serial.print("Message age: ");
+      Serial.print(diffInSeconds);
+      Serial.println(" seconds");
+
+      if (diffInSeconds > timeoutSeconds) {
+        Serial.println("Message timeout. Ignore.");
+        return true; // Bị timeout
+      }
+
+      return false; // Không timeout
+    }
+
     RepeatType getRepeatTypeFromString(String repeatType) {
       if (repeatType == "daily") return DAILY;
       if (repeatType == "weekly") return WEEKLY;
@@ -79,7 +111,7 @@ class RelayTimer {
     WiFiUDP ntpUDP;
 
     const long utcOffsetInSeconds = 7 * 3600;
-    using callbackFunc = std::function<void(String, int)>;
+    using callbackFunc = std::function<void(String, int, uint8_t)>;
 
     callbackFunc cb2;
 
@@ -145,8 +177,8 @@ class RelayTimer {
 
       int index = 0;
       for (auto& relay : relays) {
-        relay.loop([this, index](String state) {
-          this->cb2(state, index);
+        relay.loop([this, index](String state, uint8_t value) {
+          this->cb2(state, index, value);
         });
         index++;
       }
@@ -308,6 +340,10 @@ class RelayTimer {
         return;
       }
 
+      if (isMessageTimeout(doc)) {
+        return;
+      }
+
       // Truy cập các trường trong object JSON
       const char* message = doc["message"];
       Serial.print("Received message: ");
@@ -322,9 +358,8 @@ class RelayTimer {
       String str = (String)charArray;
       Serial.print(str);
 
-
-
-      if (strcmp(topic, deviceId.c_str()) == 0) {
+      String refreshTopic = deviceId + "/refresh";
+      if (strcmp(topic, refreshTopic.c_str()) == 0) {
 
         callback(doc, topic, "");
 
