@@ -5,6 +5,8 @@
 
 //using MQTTCallback = void(*)(char*, byte*, unsigned int);
 using MQTTCallback = void(*)(char* topic, byte* payload, unsigned int length);
+using MQTTDidFinishConnectCallback = void(*)(void);
+
 
 
 struct Configuration {
@@ -62,6 +64,7 @@ class MQTTHandler {
     WiFiClient net;
     PubSubClient client;
     static MQTTCallback callbackFunc;
+    static MQTTDidFinishConnectCallback didFinishConnectCallbackFunc;
     String generateRandomUUID() {
       // Generate random parts for the UUID (32-bit chunks)
       uint32_t part1 = random(0xFFFFFFFF);  // First 32 bits
@@ -93,6 +96,10 @@ class MQTTHandler {
 
     void registerCallback(MQTTCallback callback) {
       callbackFunc = callback;
+    }
+
+    void registerDidFinishConnectCallback(MQTTDidFinishConnectCallback callback) {
+      didFinishConnectCallbackFunc = callback;
     }
 
     bool connected() {
@@ -169,11 +176,9 @@ class MQTTHandler {
       if (client.connect(clientId.c_str())) {
 
         Serial.println("connected");
-        client.subscribe(deviceId.c_str(), 1);
 
         String jsonString = getInitialMessage(deviceId);
         client.publish(deviceId.c_str(), jsonString.c_str(), false);
-        //        App::sendDeviceMessage(jsonString);
 
         String switchTopic = deviceId + "/switch";
         client.subscribe(switchTopic.c_str(), 1);
@@ -184,13 +189,16 @@ class MQTTHandler {
         String timeTriggerTopic = deviceId + "/timetrigger";
         client.subscribe(timeTriggerTopic.c_str(), 1);
 
-
-
         String longlast = deviceId + "/longlast";
         client.subscribe(longlast.c_str(), 1);
 
         String ping = deviceId + "/ping";
         client.subscribe(ping.c_str(), 1);
+
+        String refresh = deviceId + "/refresh";
+        client.subscribe(refresh.c_str(), 1);
+
+        didFinishConnectCallbackFunc();
 
       } else {
 
@@ -230,3 +238,4 @@ class MQTTHandler {
 
 };
 MQTTCallback MQTTHandler::callbackFunc = nullptr;
+MQTTDidFinishConnectCallback MQTTHandler::didFinishConnectCallbackFunc = nullptr;
