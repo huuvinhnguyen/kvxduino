@@ -5,6 +5,8 @@
 #include <ESP8266HTTPClient.h>
 #endif
 
+#define TIMEOUT_MS 5000  // Thời gian chờ tối đa 5 giây
+
 
 class App {
 
@@ -47,6 +49,8 @@ class App {
         http.addHeader("Content-Type", "application/json");
 
         // Tạo đối tượng JSON
+        http.setTimeout(TIMEOUT_MS);  // Đặt timeout cho HTTP request
+
         time_t now = time(nullptr);
         DynamicJsonDocument jsonDoc(256);
         jsonDoc["id"] = App::getDeviceId();
@@ -246,5 +250,50 @@ class App {
         Serial.println("Error in WiFi connection");
       }
       return  "";
+    }
+
+    static void sendTrigger(String deviceId) {
+
+      const char* webhookUrl = "http://103.9.77.155/api/devices/trigger";
+
+      if (WiFi.status() == WL_CONNECTED) {
+
+        Serial.println("No error connection");
+
+        
+        HTTPClient http;
+
+        WiFiClient client;
+
+
+        http.begin(client, webhookUrl);
+        http.addHeader("Content-Type", "application/json");
+
+        // Tạo đối tượng JSON
+        http.setTimeout(TIMEOUT_MS);  // Đặt timeout cho HTTP request
+
+        time_t now = time(nullptr);
+        DynamicJsonDocument jsonDoc(256);
+        jsonDoc["chip_id"] = "esp32_12393336";
+       
+        // Chuyển đổi đối tượng JSON thành chuỗi
+        String payload;
+        serializeJson(jsonDoc, payload);
+
+        int httpResponseCode = http.POST(payload);
+
+        if (httpResponseCode > 0) {
+          String response = http.getString();
+          Serial.println("HTTP Response Code: " + String(httpResponseCode));
+          Serial.println("Response: " + response);
+        } else {
+          Serial.println("Error code: " + String(httpResponseCode));
+        }
+
+        http.end();
+      } else {
+        Serial.println("Error in WiFi connection 11111");
+      }
+
     }
 };
