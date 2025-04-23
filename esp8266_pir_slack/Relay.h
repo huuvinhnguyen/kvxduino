@@ -1,11 +1,11 @@
 #include <Arduino.h>
 
-#define RELAY_ON HIGH  // Relay trạng thái bật
-#define RELAY_OFF LOW  // Relay trạng thái tắt
+#define RELAY_ON LOW  // Relay trạng thái bật
+#define RELAY_OFF HIGH  // Relay trạng thái tắt
 
 class Relay {
   private:
-    using callbackFunc = std::function<void(String)>;
+    using callbackFunc = std::function<void(String, uint8_t)>;
     bool isSetOnLastingActive = false;
     unsigned long startAttempedTime = 0;
     uint8_t pin;
