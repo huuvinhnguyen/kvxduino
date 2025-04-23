@@ -33,35 +33,20 @@ void setup() {
   Serial.begin(115200);
   //  pinMode(pinPir2, INPUT);
 
-  //  wifiHandler.setupWiFi();
+  wifiHandler.setupWiFi();
   relayTimer.setup();
-  //  mqttHandler.setup(App::getDeviceId());
-  //    mqttHandler.registerCallback(handleMQTTCallback);
-
-  espServer.setup();
-  espServer.registerCallback(handleServerSetTimeCallback);
-  espServer.registerReminderCallback(handleServerSetReminderCallback);
-  espServer.registerSwitchOnLonglastCallback(handleServerSwitchOnLonglastCallback);
-  espServer.registerSwitchOnCallback(handleServerSwitchOnCallback);
-  espServer.registerRemoveAllReminders(handleRemoveAllRemindersCallback);
-  espServer.registerSetRemindersActive(handleSetRemindersActiveCallback);
-  timeClock.setup();
+  mqttHandler.setup(App::getDeviceId());
+  mqttHandler.registerCallback(handleMQTTCallback);
 
 }
 
 void loop() {
 
-  //  wifiHandler.loopConnectWiFi();
-  //  mqttHandler.loopConnectMQTT();
-  //  server.handleClient();
-  //  relayTimer.loop([](String state, int index) {
-  //    App::sendSlackMessage(state, index);
-  //  });
-  espServer.loop();
-
-  timeClock.loop([](Time t) {
-    espServer.timing(t.yr, t.mon, t.date, t.hr, t.min, t.sec);
-    espServer.updateDeviceInfo(timeClock.getStateMessage());
+  wifiHandler.loopConnectWiFi();
+  mqttHandler.loopConnectMQTT();
+  server.handleClient();
+  relayTimer.loop([](String state, int index) {
+    App::sendSlackMessage(state, index);
   });
 
   delay(1000);
