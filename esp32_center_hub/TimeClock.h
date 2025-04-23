@@ -39,7 +39,7 @@ class TimeClock {
 
       return filteredReminders;
     }
-    
+
 
   public:
     typedef std::function<void(Time)> callbackFunc;
@@ -191,7 +191,7 @@ class TimeClock {
 
       int index = 0;
       for (auto& relay : relays) {
-        relay.loop([this, index](String state) {
+        relay.loop([this, index](String state, uint8_t value) {
         });
         index++;
       }
@@ -289,11 +289,11 @@ class TimeClock {
     }
 
     void removeAllReminders() {
-       reminders.clear();
-       dataDefault.clearEEPROMString(0);
-       String deviceInfo = getStateMessage();
-       updateRelays(deviceInfo);
-       Serial.println("Data Default : Removed all reminders");
+      reminders.clear();
+      dataDefault.clearEEPROMString(0);
+      String deviceInfo = getStateMessage();
+      updateRelays(deviceInfo);
+      Serial.println("Data Default : Removed all reminders");
     }
 
     void setRemindersActive(int relayIndex, bool isActive) {

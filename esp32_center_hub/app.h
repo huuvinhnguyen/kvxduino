@@ -11,6 +11,7 @@
 class App {
 
   public:
+    static constexpr const char* serverUrl = "http://103.9.77.155";
     static uint32_t getChipId() {
 #if defined(ESP32)
       uint32_t chipId = 0;
@@ -293,6 +294,43 @@ class App {
         http.end();
       } else {
         Serial.println("Error in WiFi connection 11111");
+      }
+
+    }
+    
+    static void switchRelayOn(String deviceId, int relayIndex, uint8_t switchValue) {
+
+      String url = String(App::serverUrl) + "/api/devices/switchon";
+
+      if (WiFi.status() == WL_CONNECTED) {
+        WiFiClient wifiClient;
+        HTTPClient http;
+
+        http.begin(wifiClient, url);
+        http.addHeader("Content-Type", "application/json");
+
+        time_t now = time(nullptr);
+        DynamicJsonDocument jsonDoc(256);
+        jsonDoc["device_id"] =  deviceId;
+        jsonDoc["relay_index"] = relayIndex;
+        jsonDoc["switch_value"] = switchValue;
+
+        String payload;
+        serializeJson(jsonDoc, payload);
+
+        int httpResponseCode = http.POST(payload);
+
+        if (httpResponseCode > 0) {
+          String response = http.getString();
+          Serial.println("HTTP Response Code: " + String(httpResponseCode));
+          Serial.println("Response: " + response);
+        } else {
+          Serial.println("Error code: " + String(httpResponseCode));
+        }
+
+        http.end();
+      } else {
+        Serial.println("Error in WiFi connection");
       }
 
     }

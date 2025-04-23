@@ -21,7 +21,7 @@ void Relay::loop(callbackFunc func) {
       startAttempedTime = now;
       setOn(true);  // Bật relay ngay lập tức
       Serial.println("Relay bật lần đầu.");
-      cb1("relay_on");  // Gửi callback thông báo relay đã tắt
+      cb1("relay_on", value);  // Gửi callback thông báo relay đã tắt
 
     }
 
@@ -31,7 +31,8 @@ void Relay::loop(callbackFunc func) {
       startAttempedTime = 0;  // Reset thời gian
       isSetOnLastingActive = false;
       Serial.println("Relay tắt sau thời gian đã định.");
-      cb1("relay_off");  // Gửi callback thông báo relay đã tắt
+      cb1("relay_off", value);  // Gửi callback thông báo relay đã tắt
+
     }
   }
 }
