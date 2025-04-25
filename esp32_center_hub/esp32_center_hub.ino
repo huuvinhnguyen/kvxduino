@@ -56,6 +56,8 @@ void loop() {
     App::sendSlackMessage(state, index);
     String deviceId = mqttHandler.deviceId;
     App::switchRelayOn(deviceId, index, value);
+    App::updateLastSeen();
+
   });
 
   pir.loopPir();
@@ -116,7 +118,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
     String pingTopic = deviceId + "/ping";
     if (strcmp(topic, pingTopic.c_str()) == 0) {
-//      App::sendDeviceMessage(message);
+      //      App::sendDeviceMessage(message);
     }
 
     String switchOnTopic = deviceId + "/switchon";
@@ -124,13 +126,13 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
       String action = doc["action"];
       if (action == "remove_reminder") {
-//        App::sendDeviceMessage(message);
+        //        App::sendDeviceMessage(message);
       }
 
       if (doc.containsKey("longlast") ||
           doc.containsKey("switch_value") ||
           doc.containsKey("is_reminders_active")) {
-//        App::sendDeviceMessage(message);
+        //        App::sendDeviceMessage(message);
         App::sendSlackMessage();
       }
 
@@ -156,5 +158,6 @@ void handleMQTTDidFinishConnectCallback() {
   String deviceInfo = App::getDeviceInfo(deviceId);
 
   relayTimer.updateRelays(deviceInfo);
+  App::updateLastSeen();
 
 }

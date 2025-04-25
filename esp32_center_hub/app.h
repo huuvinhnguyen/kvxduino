@@ -334,4 +334,37 @@ class App {
       }
 
     }
+
+    static void updateLastSeen() {
+      const char* webhookUrl = "http://103.9.77.155/api/devices/update_last_seen";
+
+      if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        WiFiClient client;
+
+        http.begin(client, webhookUrl);
+        http.addHeader("Content-Type", "application/json");
+
+        // Tạo JSON payload với chip_id
+        DynamicJsonDocument jsonDoc(128);
+        jsonDoc["chip_id"] = App::getDeviceId();  // ví dụ: "esp8266_5866822"
+
+        String payload;
+        serializeJson(jsonDoc, payload);
+
+        int httpResponseCode = http.POST(payload);
+
+        if (httpResponseCode > 0) {
+          String response = http.getString();
+          Serial.println("HTTP Response Code: " + String(httpResponseCode));
+          Serial.println("Response: " + response);
+        } else {
+          Serial.println("Error code: " + String(httpResponseCode));
+        }
+
+        http.end();
+      } else {
+        Serial.println("Error in WiFi connection");
+      }
+    }
 };

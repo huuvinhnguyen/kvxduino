@@ -340,31 +340,33 @@ class RelayTimer {
         return;
       }
 
-      if (isMessageTimeout(doc)) {
-        return;
-      }
-
       // Truy cập các trường trong object JSON
       const char* message = doc["message"];
       Serial.print("Received message: ");
       Serial.print(message);
 
-
       Serial.print("Message arrived in topic: ");
       Serial.println(topic);
+
+      String refreshTopic = deviceId + "/refresh";
+      if (strcmp(topic, refreshTopic.c_str()) == 0) {
+        callback(doc, topic, "");
+      }
+
+      if (isMessageTimeout(doc)) {
+        return;
+      }
+
 
       Serial.print("Message:");
       char *charArray = (char*)payload;
       String str = (String)charArray;
       Serial.print(str);
 
-      String refreshTopic = deviceId + "/refresh";
-      if (strcmp(topic, refreshTopic.c_str()) == 0) {
-
-        callback(doc, topic, "");
-
+      String restartTopic = deviceId + "/restart";
+      if (strcmp(topic, restartTopic.c_str()) == 0) {
+        ESP.restart();
       }
-
 
       String pingTopic = deviceId + "/ping";
       if (strcmp(topic, pingTopic.c_str()) == 0) {
