@@ -198,6 +198,9 @@ class MQTTHandler {
         String refresh = deviceId + "/refresh";
         client.subscribe(refresh.c_str(), 1);
 
+        String restart = deviceId + "/restart";
+        client.subscribe(restart.c_str(), 1);
+
         didFinishConnectCallbackFunc();
 
       } else {
