@@ -44,9 +44,9 @@ class TimeClock {
   public:
     typedef std::function<void(Time)> callbackFunc;
 
-    const int CE_PIN = 5; // RST
-    const int IO_PIN = 6; // DATA
-    const int SCLK_PIN = 7; // CLOCk
+    const int CE_PIN = 3; // RST
+    const int IO_PIN = 4; // DATA
+    const int SCLK_PIN = 5; // CLOCk
     DS1302 rtc;  // Khai báo biến rtc mà không khởi tạo trực tiếp
 
     TimeClock() : rtc(CE_PIN, IO_PIN, SCLK_PIN) {}
@@ -60,10 +60,10 @@ class TimeClock {
       rtc.writeProtect(false);
 
       Relay relay1;
-      //      relay1.setup(2); // D4
-      //      relay1.setup(4); // D2
-      //      relay1.setup(5); // D1
-      relay1.setup(15); // D8
+      //      relay1.setup(2); 
+      //      relay1.setup(4); 
+      //      relay1.setup(5); 
+      relay1.setup(2); // D8
 
       relays.push_back(relay1);
 

@@ -11,10 +11,11 @@
 #include <ESPmDNS.h>
 #include <RelayTimer.h>
 #include "time.h"
-#include "App.h"
+#include "app_api.h"
 #include "esp32_pir.h"
 #include "TimeClock.h"
 #include "Esp32Server.h"
+#include "app.h"
 
 #define LED_BUILTIN 8
 
@@ -24,22 +25,34 @@ int countDevice = 0;
 BLEConnector connector;
 MQTTHandler mqttHandler;
 WiFiHandler wifiHandler;
+
+TimeClock timeClock;
+Esp32Server espServer;
 RelayTimer relayTimer;
 Pir pir;
 
 void setup() {
   Serial.begin(115200);
-
+  App::setup();
   wifiHandler.setupWiFi();
   connector.setupBLE();
   connector.registerNotifyCallback(handleBLENotify);
   relayTimer.setup();
-  mqttHandler.setup(App::getDeviceId());
+  mqttHandler.setup(AppApi::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
 
-  pir.setupPir();
-  pir.registerCallback(handlePirCallback);
+//  pir.setupPir();
+//  pir.registerCallback(handlePirCallback);
+
+  espServer.setup();
+  espServer.registerCallback(handleServerSetTimeCallback);
+  espServer.registerReminderCallback(handleServerSetReminderCallback);
+  espServer.registerSwitchOnLonglastCallback(handleServerSwitchOnLonglastCallback);
+  espServer.registerSwitchOnCallback(handleServerSwitchOnCallback);
+  espServer.registerRemoveAllReminders(handleRemoveAllRemindersCallback);
+  espServer.registerSetRemindersActive(handleSetRemindersActiveCallback);
+  timeClock.setup();
 
   Serial.println("setup");
 }
@@ -53,14 +66,21 @@ void loop() {
 
   connector.loopConnectBLE();
   relayTimer.loop([](String state, int index, uint8_t value) {
-    App::sendSlackMessage(state, index);
+    AppApi::sendSlackMessage(state, index);
     String deviceId = mqttHandler.deviceId;
-    App::switchRelayOn(deviceId, index, value);
-    App::updateLastSeen();
+    AppApi::switchRelayOn(deviceId, index, value);
+    AppApi::updateLastSeen();
 
   });
 
-  pir.loopPir();
+//  pir.loopPir();
+
+  espServer.loop();
+
+  timeClock.loop([](Time t) {
+    espServer.timing(t.yr, t.mon, t.date, t.hr, t.min, t.sec);
+    espServer.updateDeviceInfo(timeClock.getStateMessage());
+  });
 
   delay(1000);
 
@@ -110,7 +130,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     String deviceId = mqttHandler.deviceId;
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
-      String deviceInfo = App::getDeviceInfo(deviceId);
+      String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
       relayTimer.updateRelays(deviceInfo);
@@ -118,7 +138,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
     String pingTopic = deviceId + "/ping";
     if (strcmp(topic, pingTopic.c_str()) == 0) {
-      //      App::sendDeviceMessage(message);
+      //      AppApi::sendDeviceMessage(message);
     }
 
     String switchOnTopic = deviceId + "/switchon";
@@ -126,18 +146,18 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
       String action = doc["action"];
       if (action == "remove_reminder") {
-        //        App::sendDeviceMessage(message);
+        //        AppApi::sendDeviceMessage(message);
       }
 
       if (doc.containsKey("longlast") ||
           doc.containsKey("switch_value") ||
           doc.containsKey("is_reminders_active")) {
-        //        App::sendDeviceMessage(message);
-        App::sendSlackMessage();
+        //        AppApi::sendDeviceMessage(message);
+        AppApi::sendSlackMessage();
       }
 
       if (doc.containsKey("reminder")) {
-        App::addReminderMessage(message);
+        AppApi::addReminderMessage(message);
       }
     }
   });
@@ -146,18 +166,39 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 void handlePirCallback() {
   Serial.println("Object Detected 222");
   String deviceId = mqttHandler.deviceId;
-  //    App::sendSlackMessage();
-  App::sendTrigger(deviceId);
+  //    AppApi::sendSlackMessage();
+  AppApi::sendTrigger(deviceId);
 
 }
+
+void handleServerSetTimeCallback(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second) {
+  timeClock.setTime(year, month, day, hour, minute, second);
+}
+void handleServerSetReminderCallback(int relayIndex, String startTime, int duration, String repeatType) {
+  timeClock.addReminder(relayIndex, startTime, duration, repeatType);
+  timeClock.saveReminderData();
+}
+void handleServerSwitchOnCallback(int relayIndex, bool isOn) {
+  timeClock.setOn(relayIndex, isOn);
+}
+void handleServerSwitchOnLonglastCallback(int relayIndex, int longlast) {
+  timeClock.setSwitchOnLast(relayIndex, longlast);
+}
+void handleRemoveAllRemindersCallback() {
+  timeClock.removeAllReminders();
+}
+void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
+  timeClock.setRemindersActive(relayIndex, isActive);
+}
+
 
 void handleMQTTDidFinishConnectCallback() {
 
   Serial.println("handleMQTTDidFinishCallback");
   String deviceId = mqttHandler.deviceId;
-  String deviceInfo = App::getDeviceInfo(deviceId);
+  String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateRelays(deviceInfo);
-  App::updateLastSeen();
+  AppApi::updateLastSeen();
 
 }
