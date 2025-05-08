@@ -49,8 +49,8 @@ void loop() {
   relayTimer.loop([](String state, int index, uint8_t value) {
     App::sendSlackMessage(state, index);
     String deviceId = mqttHandler.deviceId;
-    App::switchRelayOn(deviceId, index, value);
     App::updateLastSeen();
+    Serial.println("switchRelayOnswitchRelayOn");
 
   });
 
@@ -95,7 +95,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       String deviceInfo = App::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
-      relayTimer.updateRelays(deviceInfo);
+      relayTimer.updateDeviceInfo(deviceInfo);
     }
 
     String pingTopic = deviceId + "/ping";
@@ -131,7 +131,7 @@ void handleMQTTDidFinishConnectCallback() {
   String deviceId = mqttHandler.deviceId;
   String deviceInfo = App::getDeviceInfo(deviceId);
 
-  relayTimer.updateRelays(deviceInfo);
+  relayTimer.updateDeviceInfo(deviceInfo);
   App::updateLastSeen();
 
 }

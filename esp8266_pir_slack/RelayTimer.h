@@ -3,6 +3,7 @@
 #include <WiFiUdp.h>
 #include <memory>  // For std::unique_ptr
 #include "time.h"
+#include <sys/time.h>
 
 class RelayTimer {
 
@@ -71,7 +72,7 @@ class RelayTimer {
     bool isMessageTimeout(StaticJsonDocument<500> &doc, unsigned long timeoutSeconds = 60) {
       if (!doc.containsKey("sent_time")) {
         Serial.println("No sent_time in message. Cannot check timeout.");
-        return true; 
+        return true;
       }
 
       String sentTimeStr = doc["sent_time"]; // ví dụ "2025-04-22 17:00:00"
@@ -91,6 +92,11 @@ class RelayTimer {
       Serial.print("Message age: ");
       Serial.print(diffInSeconds);
       Serial.println(" seconds");
+
+      char nowStr[30];
+      strftime(nowStr, sizeof(nowStr), "%Y-%m-%d %H:%M:%S", localtime(&now));
+      Serial.print("Current time (now): ");
+      Serial.println(nowStr);
 
       if (diffInSeconds > timeoutSeconds) {
         Serial.println("Message timeout. Ignore.");
@@ -202,7 +208,6 @@ class RelayTimer {
       }
     }
 
-
     void removeReminder(int relayIndex, String startTime, std::function<void()> callback) {
       // Find and erase the reminder with the matching startTime
       auto it = std::remove_if(reminders.begin(), reminders.end(),
@@ -275,7 +280,8 @@ class RelayTimer {
       relays[relayIndex].setOn(isOn);
     }
 
-    void updateRelays(String deviceInfo) {
+    void updateDeviceInfo(String deviceInfo) {
+
       DynamicJsonDocument jsonDoc(500);
       DeserializationError error = deserializeJson(jsonDoc, deviceInfo);
       if (error) {
@@ -283,8 +289,15 @@ class RelayTimer {
         Serial.println(error.c_str());
       }
 
-      reminders.clear();
       JsonArray relaysArray = jsonDoc["device_info"]["relays"].as<JsonArray>();
+      updateRelays(relaysArray);
+      updateServerTime(jsonDoc["server_time"].as<String>());
+
+    }
+
+    void updateRelays(JsonArray relaysArray) {
+
+      reminders.clear();
       for (size_t i = 0; i < relaysArray.size(); i++) {
         JsonObject relayJson = relaysArray[i].as<JsonObject>();
         bool isOn = relayJson["switch_value"];
@@ -308,6 +321,29 @@ class RelayTimer {
         }
       }
     }
+
+    void updateServerTime(String serverTime) {
+      // Parse thời gian dạng ISO 8601 (UTC): "2025-05-08T00:47:32"
+      struct tm tm;
+      if (!strptime(serverTime.c_str(), "%Y-%m-%dT%H:%M:%S", &tm)) {
+        Serial.println("Failed to parse server time");
+        return;
+      }
+
+      // Thiết lập tạm thời timezone là UTC để mktime trả đúng thời gian UTC
+      setenv("TZ", "UTC0", 1);
+      tzset();
+
+      time_t utcTime = mktime(&tm); // mktime sẽ xử lý đúng vì timezone hiện tại là UTC
+
+      // Cập nhật thời gian hệ thống ESP
+      struct timeval now = { .tv_sec = utcTime };
+      settimeofday(&now, nullptr);
+
+      Serial.print("Updated system time to UTC: ");
+      Serial.println(ctime(&utcTime));
+    }
+
 
     void handleMQTTCallback(String deviceId, char* topic, byte* payload, unsigned int length, std::function<void(StaticJsonDocument<500>, char*, String)> callback) {
       payload[length] = '\0';
@@ -354,9 +390,9 @@ class RelayTimer {
 
       String restartTopic = deviceId + "/restart";
       if (strcmp(topic, restartTopic.c_str()) == 0) {
-          ESP.restart();
+        ESP.restart();
       }
-      
+
 
       String pingTopic = deviceId + "/ping";
       if (strcmp(topic, pingTopic.c_str()) == 0) {
@@ -406,8 +442,6 @@ class RelayTimer {
 
         }
 
-
-
         if (doc.containsKey("is_reminders_active")) {
 
           bool isActive = doc["is_reminders_active"];
@@ -432,5 +466,4 @@ class RelayTimer {
         }
       }
     }
-
 };
