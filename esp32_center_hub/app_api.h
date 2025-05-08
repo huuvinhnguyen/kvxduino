@@ -268,7 +268,7 @@ class AppApi {
 
         time_t now = time(nullptr);
         DynamicJsonDocument jsonDoc(256);
-        jsonDoc["chip_id"] = "esp32_12393336";
+        jsonDoc["chip_id"] = deviceId;
 
         // Chuyển đổi đối tượng JSON thành chuỗi
         String payload;
@@ -342,6 +342,9 @@ class AppApi {
         // Tạo JSON payload với chip_id
         DynamicJsonDocument jsonDoc(128);
         jsonDoc["chip_id"] = AppApi::getDeviceId();  // ví dụ: "esp8266_5866822"
+        jsonDoc["local_ip"] = WiFi.localIP();
+        jsonDoc["build_version"] = "1.0.0";
+
 
         String payload;
         serializeJson(jsonDoc, payload);

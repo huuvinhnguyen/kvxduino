@@ -5,6 +5,8 @@
 #include <ESP8266HTTPClient.h>
 #endif
 
+#define TIMEOUT_MS 5000  // Thời gian chờ tối đa 5 giây
+
 
 class AppApi {
 
@@ -27,27 +29,23 @@ class AppApi {
       return "esp8266_" + String(getChipId());
     }
 
-
-
-
-
     // Add any other common methods for your application here
 
     static void sendSlackMessage() {
 
-
-      const char* webhookUrl = "http://103.9.77.155/devices/notify";
+      String url = String(AppApi::serverUrl) + "/devices/notify";
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
         WiFiClient client;
 
-
-        http.begin(client, webhookUrl);
+        http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
         // Tạo đối tượng JSON
+        http.setTimeout(TIMEOUT_MS);  // Đặt timeout cho HTTP request
+
         time_t now = time(nullptr);
         DynamicJsonDocument jsonDoc(256);
         jsonDoc["id"] = AppApi::getDeviceId();
@@ -78,8 +76,7 @@ class AppApi {
 
     static void sendSlackMessage(String state, int index) {
 
-
-      const char* webhookUrl = "http://103.9.77.155/devices/notify";
+      String url = String(AppApi::serverUrl) + "/devices/notify";
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
@@ -87,7 +84,7 @@ class AppApi {
         WiFiClient client;
 
 
-        http.begin(client, webhookUrl);
+        http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
         // Tạo đối tượng JSON
@@ -124,14 +121,14 @@ class AppApi {
 
     static void sendDeviceMessage(String messagePayload) {
 
-      const char* webhookUrl = "http://103.9.77.155/api/devices/receive_info";
+      String url = String(AppApi::serverUrl) + "/api/devices/receive_info";
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
         WiFiClient client;
 
-        http.begin(client, webhookUrl);
+        http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
         int httpResponseCode = http.POST(messagePayload);
@@ -152,14 +149,14 @@ class AppApi {
 
     static void addReminderMessage(String messagePayload) {
 
-      const char* webhookUrl = "http://103.9.77.155/api/devices/add_reminder";
+      String url = String(AppApi::serverUrl) + "/api/devices/add_reminder";
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
         WiFiClient client;
 
-        http.begin(client, webhookUrl);
+        http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
         int httpResponseCode = http.POST(messagePayload);
@@ -180,13 +177,13 @@ class AppApi {
 
     static void sendPirSlackMessage(String deviceId) {
 
-      const char* webhookUrl = "http://103.9.77.155/devices/notify";
+      String url = String(AppApi::serverUrl) + "/devices/notify";
 
       if (WiFi.status() == WL_CONNECTED) {
         WiFiClient wifiClient;
         HTTPClient http;
 
-        http.begin(wifiClient, webhookUrl);
+        http.begin(wifiClient, url);
         http.addHeader("Content-Type", "application/json");
 
         // Tạo đối tượng JSON
@@ -221,14 +218,14 @@ class AppApi {
 
     static String getDeviceInfo(String deviceId) {
 
-      const String webhookUrl = "http://103.9.77.155/api/devices/device_info?device_id=" + deviceId;
+      String url = String(AppApi::serverUrl) + "/api/devices/device_info?device_id=" + deviceId;
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
         WiFiClient client;
 
-        http.begin(client, webhookUrl);
+        http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
         int httpResponseCode = http.GET();
@@ -247,6 +244,51 @@ class AppApi {
         Serial.println("Error in WiFi connection");
       }
       return  "";
+    }
+
+    static void sendTrigger(String deviceId) {
+
+      String url = String(AppApi::serverUrl) + "/api/devices/trigger";
+
+      if (WiFi.status() == WL_CONNECTED) {
+
+        Serial.println("No error connection");
+
+
+        HTTPClient http;
+
+        WiFiClient client;
+
+
+        http.begin(client, url);
+        http.addHeader("Content-Type", "application/json");
+
+        // Tạo đối tượng JSON
+        http.setTimeout(TIMEOUT_MS);  // Đặt timeout cho HTTP request
+
+        time_t now = time(nullptr);
+        DynamicJsonDocument jsonDoc(256);
+        jsonDoc["chip_id"] = deviceId;
+
+        // Chuyển đổi đối tượng JSON thành chuỗi
+        String payload;
+        serializeJson(jsonDoc, payload);
+
+        int httpResponseCode = http.POST(payload);
+
+        if (httpResponseCode > 0) {
+          String response = http.getString();
+          Serial.println("HTTP Response Code: " + String(httpResponseCode));
+          Serial.println("Response: " + response);
+        } else {
+          Serial.println("Error code: " + String(httpResponseCode));
+        }
+
+        http.end();
+      } else {
+        Serial.println("Error in WiFi connection 11111");
+      }
+
     }
 
     static void switchRelayOn(String deviceId, int relayIndex, uint8_t switchValue) {
@@ -287,18 +329,21 @@ class AppApi {
     }
 
     static void updateLastSeen() {
-      const char* webhookUrl = "http://103.9.77.155/api/devices/update_last_seen";
+
+      String url = String(AppApi::serverUrl) + "/api/devices/update_last_seen";
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         WiFiClient client;
 
-        http.begin(client, webhookUrl);
+        http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
         // Tạo JSON payload với chip_id
         DynamicJsonDocument jsonDoc(128);
         jsonDoc["chip_id"] = AppApi::getDeviceId();  // ví dụ: "esp8266_5866822"
+        jsonDoc["local_ip"] = WiFi.localIP();
+        jsonDoc["build_version"] = "1.0.0";
 
         String payload;
         serializeJson(jsonDoc, payload);
@@ -318,5 +363,4 @@ class AppApi {
         Serial.println("Error in WiFi connection");
       }
     }
-
 };
