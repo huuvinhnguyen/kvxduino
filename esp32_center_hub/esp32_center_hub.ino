@@ -133,7 +133,8 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
-      relayTimer.updateRelays(deviceInfo);
+      relayTimer.updateDeviceInfo(deviceInfo);
+
     }
 
     String pingTopic = deviceId + "/ping";
@@ -198,7 +199,7 @@ void handleMQTTDidFinishConnectCallback() {
   String deviceId = mqttHandler.deviceId;
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
-  relayTimer.updateRelays(deviceInfo);
+  relayTimer.updateDeviceInfo(deviceInfo);
   AppApi::updateLastSeen();
 
 }

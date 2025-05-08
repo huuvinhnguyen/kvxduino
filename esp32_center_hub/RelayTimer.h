@@ -92,6 +92,11 @@ class RelayTimer {
       Serial.print(diffInSeconds);
       Serial.println(" seconds");
 
+      char nowStr[30];
+      strftime(nowStr, sizeof(nowStr), "%Y-%m-%d %H:%M:%S", localtime(&now));
+      Serial.print("Current time (now): ");
+      Serial.println(nowStr);
+
       if (diffInSeconds > timeoutSeconds) {
         Serial.println("Message timeout. Ignore.");
         return true; // Bị timeout
@@ -288,7 +293,8 @@ class RelayTimer {
       relays[relayIndex].setOn(isOn);
     }
 
-    void updateRelays(String deviceInfo) {
+    void updateDeviceInfo(String deviceInfo) {
+
       DynamicJsonDocument jsonDoc(500);
       DeserializationError error = deserializeJson(jsonDoc, deviceInfo);
       if (error) {
@@ -296,8 +302,15 @@ class RelayTimer {
         Serial.println(error.c_str());
       }
 
-      reminders.clear();
       JsonArray relaysArray = jsonDoc["device_info"]["relays"].as<JsonArray>();
+      updateRelays(relaysArray);
+      updateServerTime(jsonDoc["server_time"].as<String>());
+
+    }
+
+    void updateRelays(JsonArray relaysArray) {
+
+      reminders.clear();
       for (size_t i = 0; i < relaysArray.size(); i++) {
         JsonObject relayJson = relaysArray[i].as<JsonObject>();
         bool isOn = relayJson["switch_value"];
@@ -320,6 +333,28 @@ class RelayTimer {
 
         }
       }
+    }
+
+    void updateServerTime(String serverTime) {
+      // Parse thời gian dạng ISO 8601 (UTC): "2025-05-08T00:47:32"
+      struct tm tm;
+      if (!strptime(serverTime.c_str(), "%Y-%m-%dT%H:%M:%S", &tm)) {
+        Serial.println("Failed to parse server time");
+        return;
+      }
+
+      // Thiết lập tạm thời timezone là UTC để mktime trả đúng thời gian UTC
+      setenv("TZ", "UTC0", 1);
+      tzset();
+
+      time_t utcTime = mktime(&tm); // mktime sẽ xử lý đúng vì timezone hiện tại là UTC
+
+      // Cập nhật thời gian hệ thống ESP
+      struct timeval now = { .tv_sec = utcTime };
+      settimeofday(&now, nullptr);
+
+      Serial.print("Updated system time to UTC: ");
+      Serial.println(ctime(&utcTime));
     }
 
     void handleMQTTCallback(String deviceId, char* topic, byte* payload, unsigned int length, std::function<void(StaticJsonDocument<500>, char*, String)> callback) {

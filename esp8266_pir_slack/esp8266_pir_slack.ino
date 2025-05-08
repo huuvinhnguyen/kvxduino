@@ -7,9 +7,10 @@
 #include <ArduinoJson.h>
 #include "WiFiHandler.h"
 #include "time.h"
+#include "app_api.h"
 #include "RelayTimer.h"
 #include "MQTTHandler.h"
-#include "App.h"
+#include "app.h"
 #include "TimeClock.h"
 #include "Esp8266Server.h"
 
@@ -35,7 +36,7 @@ void setup() {
 
   wifiHandler.setupWiFi();
   relayTimer.setup();
-  mqttHandler.setup(App::getDeviceId());
+  mqttHandler.setup(AppApi::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
 
@@ -47,9 +48,9 @@ void loop() {
   mqttHandler.loopConnectMQTT();
   server.handleClient();
   relayTimer.loop([](String state, int index, uint8_t value) {
-    App::sendSlackMessage(state, index);
+    AppApi::sendSlackMessage(state, index);
     String deviceId = mqttHandler.deviceId;
-    App::updateLastSeen();
+    AppApi::updateLastSeen();
     Serial.println("switchRelayOnswitchRelayOn");
 
   });
@@ -92,7 +93,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
-      String deviceInfo = App::getDeviceInfo(deviceId);
+      String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
       relayTimer.updateDeviceInfo(deviceInfo);
@@ -115,11 +116,11 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
           doc.containsKey("switch_value") ||
           doc.containsKey("is_reminders_active")) {
         //        App::sendDeviceMessage(message);
-        App::sendSlackMessage();
+        AppApi::sendSlackMessage();
       }
 
       if (doc.containsKey("reminder")) {
-        App::addReminderMessage(message);
+        AppApi::addReminderMessage(message);
       }
     }
   });
@@ -129,9 +130,9 @@ void handleMQTTDidFinishConnectCallback() {
 
   Serial.println("handleMQTTDidFinishCallback");
   String deviceId = mqttHandler.deviceId;
-  String deviceInfo = App::getDeviceInfo(deviceId);
+  String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);
-  App::updateLastSeen();
+  AppApi::updateLastSeen();
 
 }

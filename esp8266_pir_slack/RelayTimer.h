@@ -3,7 +3,6 @@
 #include <WiFiUdp.h>
 #include <memory>  // For std::unique_ptr
 #include "time.h"
-#include <sys/time.h>
 
 class RelayTimer {
 
