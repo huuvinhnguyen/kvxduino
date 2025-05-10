@@ -12,24 +12,17 @@ class AppApi {
 
   public:
     static constexpr const char* serverUrl = "http://103.9.77.155";
-    static uint32_t getChipId() {
-#if defined(ESP32)
-      uint32_t chipId = 0;
-      for (int i = 0; i < 17; i = i + 8) {
-        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-      }
-      return chipId;
-#elif defined(ESP8266)
-      return ESP.getChipId();
-#else
-#error "Unsupported platform. This code supports only ESP32 and ESP8266."
-#endif
-    }
+    static String deviceId;
+
     static String getDeviceId() {
-      return "esp8266_" + String(getChipId());
+      return AppApi::deviceId;
     }
 
     // Add any other common methods for your application here
+
+    static void setup(String deviceId) {
+      AppApi::deviceId = deviceId;
+    }
 
     static void sendSlackMessage() {
 
@@ -328,6 +321,35 @@ class AppApi {
 
     }
 
+    static void doUpdateOTA(String updatedUrlString) {
+      HTTPClient http;
+      WiFiClient client; // Thêm dòng này
+      http.begin(client, updatedUrlString); // Sửa dòng này
+
+      int httpCode = http.GET();
+
+      if (httpCode == HTTP_CODE_OK) {
+        int contentLength = http.getSize();
+        WiFiClient *stream = http.getStreamPtr();
+
+        if (Update.begin(contentLength)) {
+          size_t written = Update.writeStream(*stream);
+          if (Update.end() && Update.isFinished()) {
+            Serial.println("✅ OTA Success");
+            ESP.restart();
+          } else {
+            Serial.println("❌ OTA Failed: Incomplete");
+          }
+        } else {
+          Serial.println("❌ OTA Failed: Not enough space");
+        }
+      } else {
+        Serial.printf("❌ HTTP Error: %d\n", httpCode);
+      }
+
+      http.end();
+    }
+
     static void updateLastSeen() {
 
       String url = String(AppApi::serverUrl) + "/api/devices/update_last_seen";
@@ -364,3 +386,5 @@ class AppApi {
       }
     }
 };
+
+String AppApi::deviceId = "";
