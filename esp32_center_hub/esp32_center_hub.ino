@@ -16,6 +16,8 @@
 #include "TimeClock.h"
 #include "Esp32Server.h"
 #include "app.h"
+#include "MQTTMessageHandler.h"
+
 
 #define LED_BUILTIN 8
 
@@ -30,6 +32,8 @@ TimeClock timeClock;
 Esp32Server espServer;
 RelayTimer relayTimer;
 Pir pir;
+MQTTMessageHandler mqttMessageHandler;
+
 
 void setup() {
   Serial.begin(115200);
@@ -125,6 +129,21 @@ void handleBLENotify(String jsonString) {
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
+  
+  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
+    
+    String deviceId = App::getDeviceId();
+    String refreshTopic = deviceId + "/refresh";
+    if (strcmp(topic, refreshTopic.c_str()) == 0) {
+      String deviceInfo = AppApi::getDeviceInfo(deviceId);
+      Serial.println("deviceInfo: ");
+      Serial.println(deviceInfo);
+      relayTimer.updateDeviceInfo(deviceInfo);
+      String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
+      App::setUpdateUrl(updateUrl);
+    }
+  });
+  
   relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String deviceId = mqttHandler.deviceId;

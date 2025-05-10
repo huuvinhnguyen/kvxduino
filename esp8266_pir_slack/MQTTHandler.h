@@ -204,6 +204,9 @@ class MQTTHandler {
         String setOfflineTopic = deviceId + "/set_offline_mode";
         client.subscribe(setOfflineTopic.c_str(), 1);
 
+        String updateTopic = deviceId + "/update";
+        client.subscribe(updateTopic.c_str(), 1);
+
         didFinishConnectCallbackFunc();
 
       } else {

@@ -13,7 +13,7 @@
 #include "app.h"
 #include "TimeClock.h"
 #include "Esp8266Server.h"
-
+#include "MQTTMessageHandler.h"
 
 ESP8266WebServer server(80);
 
@@ -23,22 +23,27 @@ int val;
 WiFiHandler wifiHandler;
 RelayTimer relayTimer;
 MQTTHandler mqttHandler;
+MQTTMessageHandler mqttMessageHandler;
 TimeClock timeClock;
 Esp8266Server espServer;
 
 uint8_t ledPin = 17;
 
-
 void setup() {
 
   Serial.begin(115200);
+  App::setup();
+  AppApi::setup(App::getDeviceId());
   //  pinMode(pinPir2, INPUT);
 
   wifiHandler.setupWiFi();
   relayTimer.setup();
-  mqttHandler.setup(AppApi::getDeviceId());
+  mqttHandler.setup(App::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
+  mqttMessageHandler.setup(App::getDeviceId());
+  server.begin();
+
 
 }
 
@@ -87,17 +92,23 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
-  relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
-
-    String deviceId = mqttHandler.deviceId;
-
+  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
+    
+    String deviceId = App::getDeviceId();
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
       relayTimer.updateDeviceInfo(deviceInfo);
+      String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
+      App::setUpdateUrl(updateUrl);
     }
+  });
+
+  relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
+
+    String deviceId = App::getDeviceId();
 
     String pingTopic = deviceId + "/ping";
     if (strcmp(topic, pingTopic.c_str()) == 0) {

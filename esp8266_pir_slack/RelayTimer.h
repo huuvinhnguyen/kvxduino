@@ -371,10 +371,6 @@ class RelayTimer {
       Serial.print("Message arrived in topic: ");
       Serial.println(topic);
 
-      String refreshTopic = deviceId + "/refresh";
-      if (strcmp(topic, refreshTopic.c_str()) == 0) {
-        callback(doc, topic, "");
-      }
 
       if (isMessageTimeout(doc)) {
         return;
