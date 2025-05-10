@@ -7,12 +7,13 @@
 #include <ArduinoJson.h>
 #include "WiFiHandler.h"
 #include "time.h"
+#include "app_api.h"
 #include "RelayTimer.h"
 #include "MQTTHandler.h"
-#include "App.h"
+#include "app.h"
 #include "TimeClock.h"
 #include "Esp8266Server.h"
-
+#include "MQTTMessageHandler.h"
 
 ESP8266WebServer server(80);
 
@@ -22,15 +23,17 @@ int val;
 WiFiHandler wifiHandler;
 RelayTimer relayTimer;
 MQTTHandler mqttHandler;
+MQTTMessageHandler mqttMessageHandler;
 TimeClock timeClock;
 Esp8266Server espServer;
 
 uint8_t ledPin = 17;
 
-
 void setup() {
 
   Serial.begin(115200);
+  App::setup();
+  AppApi::setup(App::getDeviceId());
   //  pinMode(pinPir2, INPUT);
 
   wifiHandler.setupWiFi();
@@ -38,6 +41,9 @@ void setup() {
   mqttHandler.setup(App::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
+  mqttMessageHandler.setup(App::getDeviceId());
+  server.begin();
+
 
 }
 
@@ -47,10 +53,10 @@ void loop() {
   mqttHandler.loopConnectMQTT();
   server.handleClient();
   relayTimer.loop([](String state, int index, uint8_t value) {
-    App::sendSlackMessage(state, index);
+    AppApi::sendSlackMessage(state, index);
     String deviceId = mqttHandler.deviceId;
-    App::switchRelayOn(deviceId, index, value);
-    App::updateLastSeen();
+    AppApi::updateLastSeen();
+    Serial.println("switchRelayOnswitchRelayOn");
 
   });
 
@@ -86,17 +92,23 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
-  relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
-
-    String deviceId = mqttHandler.deviceId;
-
+  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
+    
+    String deviceId = App::getDeviceId();
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
-      String deviceInfo = App::getDeviceInfo(deviceId);
+      String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
-      relayTimer.updateRelays(deviceInfo);
+      relayTimer.updateDeviceInfo(deviceInfo);
+      String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
+      App::setUpdateUrl(updateUrl);
     }
+  });
+
+  relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
+
+    String deviceId = App::getDeviceId();
 
     String pingTopic = deviceId + "/ping";
     if (strcmp(topic, pingTopic.c_str()) == 0) {
@@ -115,11 +127,11 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
           doc.containsKey("switch_value") ||
           doc.containsKey("is_reminders_active")) {
         //        App::sendDeviceMessage(message);
-        App::sendSlackMessage();
+        AppApi::sendSlackMessage();
       }
 
       if (doc.containsKey("reminder")) {
-        App::addReminderMessage(message);
+        AppApi::addReminderMessage(message);
       }
     }
   });
@@ -129,9 +141,9 @@ void handleMQTTDidFinishConnectCallback() {
 
   Serial.println("handleMQTTDidFinishCallback");
   String deviceId = mqttHandler.deviceId;
-  String deviceInfo = App::getDeviceInfo(deviceId);
+  String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
-  relayTimer.updateRelays(deviceInfo);
-  App::updateLastSeen();
+  relayTimer.updateDeviceInfo(deviceInfo);
+  AppApi::updateLastSeen();
 
 }
