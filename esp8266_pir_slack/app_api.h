@@ -1,4 +1,5 @@
 #if defined(ESP32)
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
 #elif defined(ESP8266)
@@ -321,36 +322,67 @@ class AppApi {
 
     }
 
-    static void doUpdateOTA(String updatedUrlString) {
+
+    static void doUpdateOTA(String firmware_url) {
+      Serial.println("Starting OTA update...");
+
+      WiFiClientSecure client;
+      client.setInsecure();
+
       HTTPClient http;
-      WiFiClient client; // Thêm dòng này
-      http.begin(client, updatedUrlString); // Sửa dòng này
+      http.begin(client, firmware_url);
 
       int httpCode = http.GET();
-
-      if (httpCode == HTTP_CODE_OK) {
-        int contentLength = http.getSize();
-        WiFiClient *stream = http.getStreamPtr();
-
-        if (Update.begin(contentLength)) {
-          size_t written = Update.writeStream(*stream);
-          if (Update.end() && Update.isFinished()) {
-            Serial.println("✅ OTA Success");
-            ESP.restart();
-          } else {
-            Serial.println("❌ OTA Failed: Incomplete");
-          }
-        } else {
-          Serial.println("❌ OTA Failed: Not enough space");
-        }
-      } else {
-        Serial.printf("❌ HTTP Error: %d\n", httpCode);
+      if (httpCode != HTTP_CODE_OK) {
+        Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
+        http.end();
+        return;
       }
 
-      http.end();
+      int contentLength = http.getSize();
+      WiFiClient* stream = http.getStreamPtr();
+
+      if (!Update.begin(contentLength, U_FLASH)) {
+        Serial.println("Not enough space to begin OTA");
+        Update.printError(Serial);
+        return;
+      }
+
+      // Read data in chunks and write to flash
+      size_t written = 0;
+      uint8_t buff[1024];
+      while (http.connected() && written < contentLength) {
+        size_t len = stream->available();
+        if (len) {
+          int readLen = stream->readBytes(buff, min(len, sizeof(buff)));
+          if (Update.write(buff, readLen) != readLen) {
+            Serial.println("Failed to write chunk");
+            Update.printError(Serial);
+            return;
+          }
+          written += readLen;
+          Serial.printf("Progress: %d / %d bytes\n", written, contentLength);
+        }
+        delay(1); // yield to watchdog
+      }
+
+      if (!Update.end()) {
+        Serial.println("Error finishing update");
+        Update.printError(Serial);
+        return;
+      }
+
+      if (!Update.isFinished()) {
+        Serial.println("Update not finished properly");
+        return;
+      }
+
+      Serial.println("OTA Update complete. Rebooting...");
+      delay(1000);
+      ESP.restart();
     }
 
-    static void updateLastSeen() {
+    static void updateLastSeen(int buildVersion, String appVersion) {
 
       String url = String(AppApi::serverUrl) + "/api/devices/update_last_seen";
 
@@ -365,10 +397,19 @@ class AppApi {
         DynamicJsonDocument jsonDoc(128);
         jsonDoc["chip_id"] = AppApi::getDeviceId();  // ví dụ: "esp8266_5866822"
         jsonDoc["local_ip"] = WiFi.localIP();
-        jsonDoc["build_version"] = "1.0.0";
+        jsonDoc["build_version"] = buildVersion;
+        jsonDoc["app_version"] = appVersion;
+        Serial.println("app_version: ");
+        Serial.println(appVersion);
+
+
 
         String payload;
         serializeJson(jsonDoc, payload);
+        Serial.println("sending params: ");
+        Serial.println(payload);
+
+
 
         int httpResponseCode = http.POST(payload);
 

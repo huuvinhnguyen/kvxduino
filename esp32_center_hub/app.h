@@ -10,6 +10,8 @@ const int UPDATE_URL_MAX_LEN = 200;
 
 class App {
   public:
+    static int buildVersion;
+    static String appVersion;
     static void setup(); // Gọi 1 lần trong setup()
     static String getDeviceId();
     static bool isOfflineMode();
@@ -100,3 +102,5 @@ uint32_t App::getChipId() {
 
 
 String App::updateUrl = "";
+int App::buildVersion = 0;
+String App::appVersion = "1.0.0";
