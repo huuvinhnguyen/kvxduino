@@ -214,11 +214,11 @@ class MQTTHandler {
 
         String restart = deviceId + "/restart";
         client.subscribe(restart.c_str(), 1);
-        
+
         String setOfflineTopic = deviceId + "/set_offline_mode";
         client.subscribe(setOfflineTopic.c_str(), 1);
 
-        String updateTopic = deviceId + "/update";
+        String updateTopic = deviceId + "/update_version";
         client.subscribe(updateTopic.c_str(), 1);
 
         didFinishConnectCallbackFunc();

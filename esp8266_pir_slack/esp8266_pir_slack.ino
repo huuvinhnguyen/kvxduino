@@ -14,6 +14,8 @@
 #include "TimeClock.h"
 #include "Esp8266Server.h"
 #include "MQTTMessageHandler.h"
+#include <ElegantOTA.h>
+
 
 ESP8266WebServer server(80);
 
@@ -43,6 +45,7 @@ void setup() {
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
   mqttMessageHandler.setup(App::getDeviceId());
   server.begin();
+  ElegantOTA.begin(&server);
 
 
 }
@@ -51,14 +54,16 @@ void loop() {
 
   wifiHandler.loopConnectWiFi();
   mqttHandler.loopConnectMQTT();
-  server.handleClient();
   relayTimer.loop([](String state, int index, uint8_t value) {
     AppApi::sendSlackMessage(state, index);
     String deviceId = mqttHandler.deviceId;
-    AppApi::updateLastSeen();
+
     Serial.println("switchRelayOnswitchRelayOn");
 
   });
+
+  server.handleClient();
+  ElegantOTA.loop();
 
   delay(1000);
 
@@ -93,16 +98,30 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
-    
+
     String deviceId = App::getDeviceId();
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
+
+      int buildVersion = App::buildVersion;
+      String appVersion = App::appVersion;
+      AppApi::updateLastSeen(buildVersion, appVersion);
+
       relayTimer.updateDeviceInfo(deviceInfo);
+
       String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
       App::setUpdateUrl(updateUrl);
+    }
+
+    String updateTopic = deviceId + "/update_version";
+    if (strcmp(topic, updateTopic.c_str()) == 0) {
+      String updateUrl = App::getUpdateUrl();
+      Serial.println("updateUrl: ");
+      Serial.print(updateUrl);
+      AppApi::doUpdateOTA(updateUrl);
     }
   });
 
@@ -144,6 +163,12 @@ void handleMQTTDidFinishConnectCallback() {
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);
-  AppApi::updateLastSeen();
+
+  String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
+  App::setUpdateUrl(updateUrl);
+
+  int buildVersion = App::buildVersion;
+  String appVersion = App::appVersion;
+  AppApi::updateLastSeen(buildVersion, appVersion);
 
 }

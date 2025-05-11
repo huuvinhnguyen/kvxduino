@@ -7,7 +7,7 @@
 #include <PubSubClient.h>
 #include <WiFiManager.h>
 #include <WiFiHandler.h>
-
+#include <WebServer.h>
 #include <ESPmDNS.h>
 #include <RelayTimer.h>
 #include "time.h"
@@ -17,7 +17,10 @@
 #include "Esp32Server.h"
 #include "app.h"
 #include "MQTTMessageHandler.h"
+#include <ElegantOTA.h>
 
+
+WebServer server(80);
 
 #define LED_BUILTIN 8
 
@@ -45,6 +48,7 @@ void setup() {
   mqttHandler.setup(AppApi::getDeviceId());
   mqttHandler.registerCallback(handleMQTTCallback);
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
+  AppApi::setup(App::getDeviceId());
 
 //  pir.setupPir();
 //  pir.registerCallback(handlePirCallback);
@@ -57,6 +61,8 @@ void setup() {
   espServer.registerRemoveAllReminders(handleRemoveAllRemindersCallback);
   espServer.registerSetRemindersActive(handleSetRemindersActiveCallback);
   timeClock.setup();
+  server.begin();
+  ElegantOTA.begin(&server);
 
   Serial.println("setup");
 }
@@ -85,6 +91,9 @@ void loop() {
     espServer.timing(t.yr, t.mon, t.date, t.hr, t.min, t.sec);
     espServer.updateDeviceInfo(timeClock.getStateMessage());
   });
+
+  server.handleClient();
+  ElegantOTA.loop();
 
   delay(1000);
 
@@ -129,21 +138,36 @@ void handleBLENotify(String jsonString) {
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
-  
+
   mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
-    
+
     String deviceId = App::getDeviceId();
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
+
+      int buildVersion = App::buildVersion;
+      String appVersion = App::appVersion;
+      AppApi::updateLastSeen(buildVersion, appVersion);
+
       relayTimer.updateDeviceInfo(deviceInfo);
+
       String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
       App::setUpdateUrl(updateUrl);
     }
+
+    String updateTopic = deviceId + "/update_version";
+    if (strcmp(topic, updateTopic.c_str()) == 0) {
+      String updateUrl = App::getUpdateUrl();
+      Serial.println("updateUrl: ");
+      Serial.print(updateUrl);
+      AppApi::doUpdateOTA(updateUrl);
+    }
+
   });
-  
+
   relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String deviceId = mqttHandler.deviceId;
@@ -219,6 +243,12 @@ void handleMQTTDidFinishConnectCallback() {
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);
-  AppApi::updateLastSeen();
+
+  String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
+  App::setUpdateUrl(updateUrl);
+
+  int buildVersion = App::buildVersion;
+  String appVersion = App::appVersion;
+  AppApi::updateLastSeen(buildVersion, appVersion);
 
 }

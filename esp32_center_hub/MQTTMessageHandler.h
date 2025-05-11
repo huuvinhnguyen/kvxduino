@@ -61,13 +61,10 @@ void MQTTMessageHandler::handle(char* topic, byte* payload, unsigned int length,
   }
 
 
-  String updateTopic = deviceId + "/update";
+  String updateTopic = deviceId + "/update_version";
+
   if (strcmp(topic, updateTopic.c_str()) == 0) {
-    //    String updateUrl = App::getUpdateUrl();
-    //    AppApi::doUpdateOTA(updateUrl);
-
     callback(doc, topic, "");
-
   }
 
   String refreshTopic = deviceId + "/refresh";
