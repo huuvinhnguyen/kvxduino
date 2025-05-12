@@ -41,18 +41,35 @@ MQTTMessageHandler mqttMessageHandler;
 void setup() {
   Serial.begin(115200);
   App::setup();
+  AppApi::setup(App::getDeviceId());
+
+//  setupTimeClock();
+  setupTimeRelay();
+  server.begin();
+  ElegantOTA.begin(&server);
+  Serial.println("setup");
+}
+
+void setupTimeRelay() {
+
   wifiHandler.setupWiFi();
   connector.setupBLE();
   connector.registerNotifyCallback(handleBLENotify);
   relayTimer.setup();
-  mqttHandler.setup(AppApi::getDeviceId());
+  mqttHandler.setup(App::getDeviceId(), App::mqttHost, App::mqttPort);
+  mqttHandler.setTopicActions(App::topicActions, sizeof(App::topicActions) / sizeof(App::topicActions[0]));
+  mqttMessageHandler.setup(App::getDeviceId());
+
   mqttHandler.registerCallback(handleMQTTCallback);
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
-  AppApi::setup(App::getDeviceId());
+  mqttMessageHandler.setup(App::getDeviceId());
 
-//  pir.setupPir();
-//  pir.registerCallback(handlePirCallback);
+  pir.setupPir();
+  pir.registerCallback(handlePirCallback);
 
+}
+
+void setupTimeClock() {
   espServer.setup();
   espServer.registerCallback(handleServerSetTimeCallback);
   espServer.registerReminderCallback(handleServerSetReminderCallback);
@@ -61,46 +78,40 @@ void setup() {
   espServer.registerRemoveAllReminders(handleRemoveAllRemindersCallback);
   espServer.registerSetRemindersActive(handleSetRemindersActiveCallback);
   timeClock.setup();
-  server.begin();
-  ElegantOTA.begin(&server);
-
-  Serial.println("setup");
 }
 
 void loop() {
 
   Serial.println("loop");
+  loopTimeRelay();
+  server.handleClient();
+  ElegantOTA.loop();
+  delay(1000);
+
+}
+
+void loopTimeRelay() {
   wifiHandler.loopConnectWiFi();
   mqttHandler.loopConnectMQTT();
-
-
   connector.loopConnectBLE();
   relayTimer.loop([](String state, int index, uint8_t value) {
     AppApi::sendSlackMessage(state, index);
-    String deviceId = mqttHandler.deviceId;
-    AppApi::switchRelayOn(deviceId, index, value);
-    AppApi::updateLastSeen();
-
+    Serial.println("switchRelayOnswitchRelayOn");
   });
+  pir.loopPir();
+}
 
-//  pir.loopPir();
-
+void loopTimeClock() {
   espServer.loop();
 
   timeClock.loop([](Time t) {
     espServer.timing(t.yr, t.mon, t.date, t.hr, t.min, t.sec);
     espServer.updateDeviceInfo(timeClock.getStateMessage());
   });
-
-  server.handleClient();
-  ElegantOTA.loop();
-
-  delay(1000);
-
 }
 
-void handleBLENotify(String jsonString) {
 
+void handleBLENotify(String jsonString) {
 
   // In chuỗi JSON để kiểm tra
   Serial.print("Received JSON: ");
