@@ -38,28 +38,34 @@ void setup() {
   AppApi::setup(App::getDeviceId());
   //  pinMode(pinPir2, INPUT);
 
+  setupTimeRelay();
+  server.begin();
+  ElegantOTA.begin(&server);
+}
+
+void setupTimeRelay() {
   wifiHandler.setupWiFi();
   relayTimer.setup();
-  mqttHandler.setup(App::getDeviceId());
+  mqttHandler.setup(App::getDeviceId(), App::mqttHost, App::mqttPort);
+  mqttHandler.setTopicActions(App::topicActions, sizeof(App::topicActions) / sizeof(App::topicActions[0]));
   mqttHandler.registerCallback(handleMQTTCallback);
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
   mqttMessageHandler.setup(App::getDeviceId());
-  server.begin();
-  ElegantOTA.begin(&server);
+}
 
-
+void setupTimeClock() {
+  espServer.setup();
+  espServer.registerCallback(handleServerSetTimeCallback);
+  espServer.registerReminderCallback(handleServerSetReminderCallback);
+  espServer.registerSwitchOnLonglastCallback(handleServerSwitchOnLonglastCallback);
+  espServer.registerSwitchOnCallback(handleServerSwitchOnCallback);
+  espServer.registerRemoveAllReminders(handleRemoveAllRemindersCallback);
+  espServer.registerSetRemindersActive(handleSetRemindersActiveCallback);
+  timeClock.setup();
 }
 
 void loop() {
-
-  wifiHandler.loopConnectWiFi();
-  mqttHandler.loopConnectMQTT();
-  relayTimer.loop([](String state, int index, uint8_t value) {
-    AppApi::sendSlackMessage(state, index);
-    Serial.println("switchRelayOnswitchRelayOn");
-
-  });
-
+  loopTimeRelay();
   server.handleClient();
   ElegantOTA.loop();
 
@@ -67,6 +73,23 @@ void loop() {
 
 }
 
+void loopTimeRelay() {
+  wifiHandler.loopConnectWiFi();
+  mqttHandler.loopConnectMQTT();
+  relayTimer.loop([](String state, int index, uint8_t value) {
+    AppApi::sendSlackMessage(state, index);
+    Serial.println("switchRelayOnswitchRelayOn");
+  });
+}
+
+void loopTimeClock() {
+  espServer.loop();
+
+  timeClock.loop([](Time t) {
+    espServer.timing(t.yr, t.mon, t.date, t.hr, t.min, t.sec);
+    espServer.updateDeviceInfo(timeClock.getStateMessage());
+  });
+}
 
 void handleServerSetTimeCallback(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second) {
   timeClock.setTime(year, month, day, hour, minute, second);
@@ -94,7 +117,7 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
-  
+
   String deviceId = App::getDeviceId();
   mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 

@@ -10,6 +10,8 @@ const int UPDATE_URL_MAX_LEN = 200;
 
 class App {
   public:
+    static String mqttHost;
+    static int mqttPort;
     static int buildVersion;
     static String appVersion;
     static void setup(); // Gọi 1 lần trong setup()
@@ -19,6 +21,7 @@ class App {
 
     static String getUpdateUrl();
     static void setUpdateUrl(const String& url);
+    static const char* const topicActions[];
 
   private:
     static uint32_t getChipId();
@@ -104,3 +107,17 @@ uint32_t App::getChipId() {
 String App::updateUrl = "";
 int App::buildVersion = 0;
 String App::appVersion = "1.0.0";
+String App::mqttHost = "103.9.77.155";
+int App::mqttPort = 1883;
+
+const char* const App::topicActions[] = {
+  "switch",
+  "switchon",
+  "timetrigger",
+  "longlast",
+  "ping",
+  "refresh",
+  "restart",
+  "set_offline_mode",
+  "update_version"
+};
