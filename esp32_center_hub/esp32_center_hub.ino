@@ -138,8 +138,8 @@ void handleBLENotify(String jsonString) {
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
-
-  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
+  String deviceId = App::getDeviceId();
+  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String deviceId = App::getDeviceId();
     String refreshTopic = deviceId + "/refresh";
@@ -168,9 +168,9 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   });
 
-  relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
+  relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
 
-    String deviceId = mqttHandler.deviceId;
+    String deviceId = App::getDeviceId();;
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);
@@ -209,7 +209,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
 void handlePirCallback() {
   Serial.println("Object Detected 222");
-  String deviceId = mqttHandler.deviceId;
+  String deviceId = App::getDeviceId();
   //    AppApi::sendSlackMessage();
   AppApi::sendTrigger(deviceId);
 
@@ -239,7 +239,7 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
 void handleMQTTDidFinishConnectCallback() {
 
   Serial.println("handleMQTTDidFinishCallback");
-  String deviceId = mqttHandler.deviceId;
+  String deviceId = App::getDeviceId();
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);

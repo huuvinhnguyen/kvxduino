@@ -63,6 +63,7 @@ class MQTTHandler {
   private:
     WiFiClient net;
     PubSubClient client;
+    String deviceId = "";
     static MQTTCallback callbackFunc;
     static MQTTDidFinishConnectCallback didFinishConnectCallbackFunc;
     String generateRandomUUID() {
@@ -83,9 +84,7 @@ class MQTTHandler {
     }
 
   public:
-    //    String deviceId = String(ESP.getChipId());
-    String deviceId = "esp8266_" + String(ESP.getChipId());
-
+    
     MQTTHandler() : net(), client(net) {} // Khởi tạo PubSubClient với WiFiClient
     long lastReconnectMQTTAttempt = 0;
 

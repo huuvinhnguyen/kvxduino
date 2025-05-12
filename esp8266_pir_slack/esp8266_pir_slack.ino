@@ -56,8 +56,6 @@ void loop() {
   mqttHandler.loopConnectMQTT();
   relayTimer.loop([](String state, int index, uint8_t value) {
     AppApi::sendSlackMessage(state, index);
-    String deviceId = mqttHandler.deviceId;
-
     Serial.println("switchRelayOnswitchRelayOn");
 
   });
@@ -96,10 +94,10 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
+  
+  String deviceId = App::getDeviceId();
+  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
-  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
-
-    String deviceId = App::getDeviceId();
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);
@@ -125,7 +123,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
     }
   });
 
-  relayTimer.handleMQTTCallback(mqttHandler.deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
+  relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String deviceId = App::getDeviceId();
 
@@ -159,7 +157,8 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 void handleMQTTDidFinishConnectCallback() {
 
   Serial.println("handleMQTTDidFinishCallback");
-  String deviceId = mqttHandler.deviceId;
+  String deviceId = App::getDeviceId();
+
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);
