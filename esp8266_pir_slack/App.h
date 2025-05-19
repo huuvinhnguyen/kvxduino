@@ -1,322 +1,123 @@
 #if defined(ESP32)
-#include <HTTPClient.h>
-
+#include <Preferences.h>
 #elif defined(ESP8266)
-#include <ESP8266HTTPClient.h>
+#include <EEPROM.h>
+#define EEPROM_SIZE 512
+const int OFFLINE_FLAG_ADDR = 0;
+const int UPDATE_URL_ADDR = 10;
+const int UPDATE_URL_MAX_LEN = 200;
+#endif
+
+class App {
+  public:
+    static String mqttHost;
+    static int mqttPort;
+    static int buildVersion;
+    static String appVersion;
+    static void setup(); // Gọi 1 lần trong setup()
+    static String getDeviceId();
+    static bool isOfflineMode();
+    static void setOfflineActive(bool offline);
+
+    static String getUpdateUrl();
+    static void setUpdateUrl(const String& url);
+    static const char* const topicActions[];
+
+  private:
+    static uint32_t getChipId();
+    static String updateUrl;
+
+#if defined(ESP32)
+    static Preferences& getPrefs();
+
 #endif
 
 
-class App {
+};
 
-  public:
-    static constexpr const char* serverUrl = "http://103.9.77.155";
-    static uint32_t getChipId() {
+void App::setup() {
 #if defined(ESP32)
-      uint32_t chipId = 0;
-      for (int i = 0; i < 17; i = i + 8) {
-        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-      }
-      return chipId;
+  getPrefs().begin("app", false); // namespace "app"
 #elif defined(ESP8266)
-      return ESP.getChipId();
+  EEPROM.begin(EEPROM_SIZE);
+#endif
+}
+
+bool App::isOfflineMode() {
+#if defined(ESP32)
+  return getPrefs().getBool("offline_mode", false);
+#elif defined(ESP8266)
+  bool value = false;
+  EEPROM.get(OFFLINE_FLAG_ADDR, value);
+  return value;
+#endif
+}
+
+void App::setOfflineActive(bool offline) {
+#if defined(ESP32)
+  getPrefs().putBool("offline_mode", offline);
+#elif defined(ESP8266)
+  EEPROM.put(OFFLINE_FLAG_ADDR, offline);
+  EEPROM.commit();
+#endif
+}
+
+#if defined(ESP32)
+Preferences& App::getPrefs() {
+  static Preferences prefs;
+  return prefs;
+}
+#endif
+
+String App::getUpdateUrl() {
+  return App::updateUrl;
+}
+
+void App::setUpdateUrl(const String& url) {
+  App::updateUrl = url;
+}
+
+
+String App::getDeviceId() {
+#if defined(ESP8266)
+  return "esp8266_" + String(getChipId());
+#elif defined(ESP32)
+  return "esp32_" + String(getChipId());
+#else
+  return "unknown_device";
+#endif
+}
+
+uint32_t App::getChipId() {
+#if defined(ESP32)
+  uint64_t mac = ESP.getEfuseMac();  // chỉ gọi 1 lần
+  uint32_t chipId = 0;
+  for (int i = 0; i < 24; i += 8) {
+    chipId |= ((mac >> (40 - i)) & 0xff) << i;
+  }
+  return chipId;
+#elif defined(ESP8266)
+  return ESP.getChipId();
 #else
 #error "Unsupported platform. This code supports only ESP32 and ESP8266."
 #endif
-    }
-    static String getDeviceId() {
-      return "esp8266_" + String(getChipId());
-    }
-
-
-
-
-
-    // Add any other common methods for your application here
-
-    static void sendSlackMessage() {
-
-
-      const char* webhookUrl = "http://103.9.77.155/devices/notify";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-
-        WiFiClient client;
-
-
-        http.begin(client, webhookUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        // Tạo đối tượng JSON
-        time_t now = time(nullptr);
-        DynamicJsonDocument jsonDoc(256);
-        jsonDoc["id"] = App::getDeviceId();
-        jsonDoc["message"] = "xin_chao";
-        jsonDoc["time"] = now;
-        jsonDoc["model"] = "esp8266";
-
-
-        // Chuyển đổi đối tượng JSON thành chuỗi
-        String payload;
-        serializeJson(jsonDoc, payload);
-
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-    }
-
-    static void sendSlackMessage(String state, int index) {
-
-
-      const char* webhookUrl = "http://103.9.77.155/devices/notify";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-
-        WiFiClient client;
-
-
-        http.begin(client, webhookUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        // Tạo đối tượng JSON
-        time_t now = time(nullptr);
-        DynamicJsonDocument jsonDoc(256);
-        jsonDoc["id"] = App::getDeviceId();
-        jsonDoc["message"] = "xin_chao!";
-        jsonDoc["time"] = now;
-        jsonDoc["model"] = "esp8266";
-        jsonDoc["relay_index"] = index;
-        jsonDoc["relay_state"] = state;
-
-
-
-        // Chuyển đổi đối tượng JSON thành chuỗi
-        String payload;
-        serializeJson(jsonDoc, payload);
-
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-    }
-
-    static void sendDeviceMessage(String messagePayload) {
-
-      const char* webhookUrl = "http://103.9.77.155/api/devices/receive_info";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-
-        WiFiClient client;
-
-        http.begin(client, webhookUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        int httpResponseCode = http.POST(messagePayload);
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-    }
-
-    static void addReminderMessage(String messagePayload) {
-
-      const char* webhookUrl = "http://103.9.77.155/api/devices/add_reminder";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-
-        WiFiClient client;
-
-        http.begin(client, webhookUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        int httpResponseCode = http.POST(messagePayload);
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-    }
-
-    static void sendPirSlackMessage(String deviceId) {
-
-      const char* webhookUrl = "http://103.9.77.155/devices/notify";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        WiFiClient wifiClient;
-        HTTPClient http;
-
-        http.begin(wifiClient, webhookUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        // Tạo đối tượng JSON
-        time_t now = time(nullptr);
-        DynamicJsonDocument jsonDoc(256);
-        jsonDoc["id"] =  deviceId;
-        jsonDoc["message"] = "xin_chao";
-        jsonDoc["time"] = now;
-        jsonDoc["model"] = "esp8266";
-        jsonDoc["sen"] = "pir";
-
-
-        // Chuyển đổi đối tượng JSON thành chuỗi
-        String payload;
-        serializeJson(jsonDoc, payload);
-
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-    }
-
-    static String getDeviceInfo(String deviceId) {
-
-      const String webhookUrl = "http://103.9.77.155/api/devices/device_info?device_id=" + deviceId;
-
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-
-        WiFiClient client;
-
-        http.begin(client, webhookUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        int httpResponseCode = http.GET();
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-          return String(response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-      return  "";
-    }
-
-    static void switchRelayOn(String deviceId, int relayIndex, uint8_t switchValue) {
-
-      String url = String(App::serverUrl) + "/api/devices/switchon";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        WiFiClient wifiClient;
-        HTTPClient http;
-
-        http.begin(wifiClient, url);
-        http.addHeader("Content-Type", "application/json");
-
-        time_t now = time(nullptr);
-        DynamicJsonDocument jsonDoc(256);
-        jsonDoc["device_id"] =  deviceId;
-        jsonDoc["relay_index"] = relayIndex;
-        jsonDoc["switch_value"] = switchValue;
-
-        String payload;
-        serializeJson(jsonDoc, payload);
-
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-
-    }
-
-    static void updateLastSeen() {
-      const char* webhookUrl = "http://103.9.77.155/api/devices/update_last_seen";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        WiFiClient client;
-
-        http.begin(client, webhookUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        // Tạo JSON payload với chip_id
-        DynamicJsonDocument jsonDoc(128);
-        jsonDoc["chip_id"] = App::getDeviceId();  // ví dụ: "esp8266_5866822"
-
-        String payload;
-        serializeJson(jsonDoc, payload);
-
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-          String response = http.getString();
-          Serial.println("HTTP Response Code: " + String(httpResponseCode));
-          Serial.println("Response: " + response);
-        } else {
-          Serial.println("Error code: " + String(httpResponseCode));
-        }
-
-        http.end();
-      } else {
-        Serial.println("Error in WiFi connection");
-      }
-    }
-
+}
+
+
+String App::updateUrl = "";
+int App::buildVersion = 0;
+String App::appVersion = "1.0.0";
+String App::mqttHost = "103.9.77.155";
+int App::mqttPort = 1883;
+
+const char* const App::topicActions[] = {
+  "switch",
+  "switchon",
+  "timetrigger",
+  "longlast",
+  "ping",
+  "refresh",
+  "restart",
+  "set_offline_mode",
+  "update_version"
 };
