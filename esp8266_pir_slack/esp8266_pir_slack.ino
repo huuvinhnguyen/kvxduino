@@ -79,6 +79,9 @@ void loopTimeRelay() {
   relayTimer.loop([](String state, int index, uint8_t value) {
     AppApi::sendSlackMessage(state, index);
     Serial.println("switchRelayOnswitchRelayOn");
+    int buildVersion = App::buildVersion;
+    String appVersion = App::appVersion;
+    AppApi::updateLastSeen(buildVersion, appVersion);
   });
 }
 

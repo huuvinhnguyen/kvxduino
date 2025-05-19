@@ -43,7 +43,7 @@ void setup() {
   App::setup();
   AppApi::setup(App::getDeviceId());
 
-//  setupTimeClock();
+  //  setupTimeClock();
   setupTimeRelay();
   server.begin();
   ElegantOTA.begin(&server);
@@ -64,8 +64,8 @@ void setupTimeRelay() {
   mqttHandler.registerDidFinishConnectCallback(handleMQTTDidFinishConnectCallback);
   mqttMessageHandler.setup(App::getDeviceId());
 
-  pir.setupPir();
-  pir.registerCallback(handlePirCallback);
+  //  pir.setupPir();
+  //  pir.registerCallback(handlePirCallback);
 
 }
 
@@ -96,9 +96,12 @@ void loopTimeRelay() {
   connector.loopConnectBLE();
   relayTimer.loop([](String state, int index, uint8_t value) {
     AppApi::sendSlackMessage(state, index);
-    Serial.println("switchRelayOnswitchRelayOn");
+    int buildVersion = App::buildVersion;
+    String appVersion = App::appVersion;
+    AppApi::updateLastSeen(buildVersion, appVersion);
+
   });
-  pir.loopPir();
+  //  pir.loopPir();
 }
 
 void loopTimeClock() {
@@ -153,9 +156,14 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String deviceId = App::getDeviceId();
+
+    String deviceInfo = AppApi::getDeviceInfo(deviceId);
+    relayTimer.updateDeviceInfo(deviceInfo);
+
+
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
-      String deviceInfo = AppApi::getDeviceInfo(deviceId);
+//      String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
 
@@ -163,7 +171,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       String appVersion = App::appVersion;
       AppApi::updateLastSeen(buildVersion, appVersion);
 
-      relayTimer.updateDeviceInfo(deviceInfo);
+//      relayTimer.updateDeviceInfo(deviceInfo);
 
       String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
       App::setUpdateUrl(updateUrl);
@@ -175,6 +183,12 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       Serial.println("updateUrl: ");
       Serial.print(updateUrl);
       AppApi::doUpdateOTA(updateUrl);
+    }
+
+    String resetWifiTopic = deviceId + "/reset_wifi";
+    if (strcmp(topic, resetWifiTopic.c_str()) == 0) {
+      Serial.println("resetting wifi");
+      wifiHandler.resetWifi();
     }
 
   });
