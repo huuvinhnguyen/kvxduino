@@ -124,17 +124,17 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
   String deviceId = App::getDeviceId();
   mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
+    String deviceInfo = AppApi::getDeviceInfo(deviceId);
+    relayTimer.updateDeviceInfo(deviceInfo);
+
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
-      String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
 
       int buildVersion = App::buildVersion;
       String appVersion = App::appVersion;
       AppApi::updateLastSeen(buildVersion, appVersion);
-
-      relayTimer.updateDeviceInfo(deviceInfo);
 
       String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
       App::setUpdateUrl(updateUrl);
@@ -147,11 +147,15 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       Serial.print(updateUrl);
       AppApi::doUpdateOTA(updateUrl);
     }
+
+    String resetWifiTopic = deviceId + "/reset_wifi";
+    if (strcmp(topic, resetWifiTopic.c_str()) == 0) {
+      Serial.println("resetting wifi");
+      wifiHandler.resetWifi();
+    }
   });
 
-  relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
-
-    String deviceId = App::getDeviceId();
+  relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String pingTopic = deviceId + "/ping";
     if (strcmp(topic, pingTopic.c_str()) == 0) {

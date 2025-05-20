@@ -193,9 +193,8 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   });
 
-  relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer](StaticJsonDocument<500> doc, char* topic, String message) {
+  relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
-    String deviceId = App::getDeviceId();;
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);

@@ -119,5 +119,6 @@ const char* const App::topicActions[] = {
   "refresh",
   "restart",
   "set_offline_mode",
-  "update_version"
+  "update_version",
+  "reset_wifi"
 };
