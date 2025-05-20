@@ -65,6 +65,35 @@ class WiFiHandler {
 
     }
 
+    void resetWifi() {
+      Serial.println("Resetting WiFi credentials...");
+
+      // Xóa dữ liệu trong EEPROM tại các địa chỉ SSID & PASSWORD
+      for (int i = WIFI_SSID_ADDR; i < WIFI_SSID_ADDR + 32; i++) {
+        EEPROM.write(i, 0);
+      }
+      for (int i = WIFI_PASS_ADDR; i < WIFI_PASS_ADDR + 32; i++) {
+        EEPROM.write(i, 0);
+      }
+      EEPROM.commit();
+
+      // Xóa cấu hình đã lưu trong WiFiManager
+      WiFiManager wifiManager;
+      wifiManager.resetSettings();
+
+      Serial.println("WiFi settings and credentials reset. Restarting...");
+      delay(2000);
+      ESP.restart();
+    }
+
+    String getCurrentSSID() {
+      if (WiFi.status() == WL_CONNECTED) {
+        return WiFi.SSID();
+      } else {
+        return "Not connected";
+      }
+    }
+
   private:
     void saveCredentials(const String& ssid, const String& pass) {
       writeEEPROM(WIFI_SSID_ADDR, ssid);

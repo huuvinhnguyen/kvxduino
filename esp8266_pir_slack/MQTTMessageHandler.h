@@ -11,6 +11,7 @@ class MQTTMessageHandler {
     //  MQTTMessageHandler(RelayTimer& relayTimer, MQTTHandler& mqttHandler);
     //
     void setup(String deviceId);
+    void updateServerTime(String serverTime);
     void handle(char* topic, byte* payload, unsigned int length, std::function<void(StaticJsonDocument<500>, char*, String)> callback);
     String getUpdateUrl(String deviceInfo);
     //
@@ -71,4 +72,31 @@ void MQTTMessageHandler::handle(char* topic, byte* payload, unsigned int length,
   if (strcmp(topic, refreshTopic.c_str()) == 0) {
     callback(doc, topic, "");
   }
+
+  String resetWifiTopic = deviceId + "/reset_wifi";
+  if (strcmp(topic, resetWifiTopic.c_str()) == 0) {
+    callback(doc, topic, "");
+  }
+}
+
+void MQTTMessageHandler::updateServerTime(String serverTime) {
+  // Parse thời gian dạng ISO 8601 (UTC): "2025-05-08T00:47:32"
+  struct tm tm;
+  if (!strptime(serverTime.c_str(), "%Y-%m-%dT%H:%M:%S", &tm)) {
+    Serial.println("Failed to parse server time");
+    return;
+  }
+
+  // Thiết lập tạm thời timezone là UTC để mktime trả đúng thời gian UTC
+  setenv("TZ", "UTC0", 1);
+  tzset();
+
+  time_t utcTime = mktime(&tm); // mktime sẽ xử lý đúng vì timezone hiện tại là UTC
+
+  // Cập nhật thời gian hệ thống ESP
+  struct timeval now = { .tv_sec = utcTime };
+  settimeofday(&now, nullptr);
+
+  Serial.print("Updated system time to UTC: ");
+  Serial.println(ctime(&utcTime));
 }

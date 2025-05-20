@@ -97,7 +97,7 @@ class RelayTimer {
       Serial.print("Current time (now): ");
       Serial.println(nowStr);
 
-      if (diffInSeconds > timeoutSeconds) {
+      if (abs(diffInSeconds) > timeoutSeconds) {
         Serial.println("Message timeout. Ignore.");
         return true; // Bị timeout
       }
@@ -146,6 +146,13 @@ class RelayTimer {
     }
 
     void loop(callbackFunc func) {
+
+      time_t now = time(nullptr); // Giờ hiện tại của ESP32
+      char nowStr[30];
+      strftime(nowStr, sizeof(nowStr), "%Y-%m-%d %H:%M:%S", localtime(&now));
+      Serial.print("Current time (now): ");
+      Serial.println(nowStr);
+      
       cb2 = func;
       struct tm timeinfo;
       if (!getLocalTime(&timeinfo)) {
