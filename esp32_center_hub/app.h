@@ -21,6 +21,7 @@ class App {
     static String getUpdateUrl();
     static void setUpdateUrl(const String& url);
     static const char* const topicActions[];
+    static String getResetReasonString();
 
   private:
     static uint32_t getChipId();
@@ -100,6 +101,23 @@ uint32_t App::getChipId() {
 #else
 #error "Unsupported platform. This code supports only ESP32 and ESP8266."
 #endif
+}
+
+String App::getResetReasonString() {
+  esp_reset_reason_t reason = esp_reset_reason();
+
+  switch (reason) {
+    case ESP_RST_POWERON:    return "POWER_ON";
+    case ESP_RST_EXT:        return "EXTERNAL_RESET";
+    case ESP_RST_SW:         return "SOFTWARE_RESET";
+    case ESP_RST_PANIC:      return "PANIC_RESET";
+    case ESP_RST_INT_WDT:    return "INTERRUPT_WATCHDOG";
+    case ESP_RST_TASK_WDT:   return "TASK_WATCHDOG";
+    case ESP_RST_BROWNOUT:   return "BROWNOUT";
+    case ESP_RST_SDIO:       return "SDIO_RESET";
+    case ESP_RST_DEEPSLEEP:  return "DEEP_SLEEP";
+    default:                 return "UNKNOWN";
+  }
 }
 
 

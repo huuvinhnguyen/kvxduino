@@ -10,7 +10,7 @@ class RelayTimer {
 
     struct Reminder {
       int relayIndex;
-      String startTime;
+      std::string startTime;
       int duration;
       RepeatType repeatType;
       bool isActive;
@@ -116,9 +116,8 @@ class RelayTimer {
     WiFiUDP ntpUDP;
 
     const long utcOffsetInSeconds = 7 * 3600;
-    using callbackFunc = std::function<void(String, int, uint8_t)>;
+    using callbackFunc = std::function<void(int, uint8_t)>;
 
-    callbackFunc cb2;
 
     void setup() {
 
@@ -163,41 +162,55 @@ class RelayTimer {
       time_t now = time(nullptr); // Giờ hiện tại của ESP32
       char nowStr[30];
       strftime(nowStr, sizeof(nowStr), "%Y-%m-%d %H:%M:%S", localtime(&now));
-      Serial.print("Current time (now): ");
+      Serial.print("Current time 2 (now): ");
       Serial.println(nowStr);
-      
-      cb2 = func;
+
+      Serial.println("###getLocalTime: ");
+
       struct tm timeinfo;
       if (!getLocalTime(&timeinfo)) {
         Serial.println("Failed to obtain time");
         return;
       }
 
+      Serial.print("Reminder size: ");
+      Serial.println(reminders.size());
+
       for (const auto& reminder : reminders) {
         if (isReminderMatched(reminder.startTime, reminder.repeatType) && reminder.isActive) {
           Serial.println("Activate relay for reminder");
-          Serial.println("Duration: ");
-          Serial.print(reminder.duration);
-          if (reminder.duration > 0) {
-            setSwitchOnLast(reminder.relayIndex, reminder.duration);
-          } else {
+          Serial.print("Duration: ");
+          Serial.println(reminder.duration);
 
-            relays[reminder.relayIndex].setOn(true);
+          // ✅ KIỂM TRA relayIndex TRƯỚC KHI DÙNG
+          if (reminder.relayIndex >= 0 && reminder.relayIndex < relays.size()) {
+            if (reminder.duration > 0) {
+              setSwitchOnLast(reminder.relayIndex, reminder.duration);
+            } else {
+              relays[reminder.relayIndex].setOn(true);
+            }
+          } else {
+            Serial.print("❌ relayIndex ngoài giới hạn: ");
+            Serial.println(reminder.relayIndex);
           }
         }
       }
 
-      int index = 0;
-      for (auto& relay : relays) {
-        relay.loop([this, index](String state, uint8_t value) {
-          this->cb2(state, index, value);
+      Serial.println("###check relays");
+
+
+      for (int i = 0; i < relays.size(); ++i) {
+        relays[i].loop([func, i](uint8_t value) {
+          Serial.println("###cb2: ");
+          func(i, value);
         });
-        index++;
       }
+
+      
 
     }
 
-    void addReminder(int relayIndex, String startTime, int duration, String repeatType) {
+    void addReminder(int relayIndex, std::string startTime, int duration, String repeatType) {
 
       RepeatType repeatTypeEnum = getRepeatTypeFromString(repeatType);
 
@@ -228,7 +241,7 @@ class RelayTimer {
     }
 
 
-    void removeReminder(int relayIndex, String startTime, std::function<void()> callback) {
+    void removeReminder(int relayIndex, std::string startTime, std::function<void()> callback) {
       // Find and erase the reminder with the matching startTime
       auto it = std::remove_if(reminders.begin(), reminders.end(),
       [&relayIndex, &startTime](const Reminder & reminder) {
@@ -245,7 +258,7 @@ class RelayTimer {
       }
     }
 
-    bool isReminderMatched(String timestamp, RepeatType repeatType) {
+    bool isReminderMatched(std::string timestamp, RepeatType repeatType) {
       int year, month, day, hour, minute, second;
       if (timestamp.length() == 16) {
         timestamp += ":00";
@@ -311,14 +324,21 @@ class RelayTimer {
 
       JsonArray relaysArray = jsonDoc["device_info"]["relays"].as<JsonArray>();
       updateRelays(relaysArray);
-      updateServerTime(jsonDoc["server_time"].as<String>());
 
     }
 
     void updateRelays(JsonArray relaysArray) {
 
       reminders.clear();
-      for (size_t i = 0; i < relaysArray.size(); i++) {
+
+      for (size_t i = 0; i < relaysArray.size(); ++i) {
+
+        if (i >= relays.size()) {
+          Serial.print("❌ relay index từ JSON vượt giới hạn: ");
+          Serial.println(i);
+          continue;
+        }
+
         JsonObject relayJson = relaysArray[i].as<JsonObject>();
         bool isOn = relayJson["switch_value"];
         relays[i].setOn(isOn);
@@ -326,11 +346,16 @@ class RelayTimer {
           relays[i].isRemindersActive = relayJson["is_reminders_active"];
         }
 
+        if (!relayJson.containsKey("reminders") || !relayJson["reminders"].is<JsonArray>()) {
+          Serial.println("Missing or invalid reminders array");
+          continue;
+        }
+
         JsonArray remindersArray = relayJson["reminders"].as<JsonArray>();
 
         for (JsonObject reminderJson : remindersArray) {
           int relayIndex = i;
-          String startTime = reminderJson["start_time"].as<String>();
+          std::string startTime = reminderJson["start_time"].as<std::string>();
           int duration = reminderJson["duration"];
           String repeatType = reminderJson["repeat_type"].as<String>();
           RepeatType repeatTypeEnum = getRepeatTypeFromString(repeatType);
@@ -391,6 +416,8 @@ class RelayTimer {
       Serial.println(topic);
 
       if (isMessageTimeout(doc)) {
+        // callback for timeout
+        callback(doc, "timeout", "timeout");
         return;
       }
 
@@ -419,7 +446,7 @@ class RelayTimer {
         int relayIndex = doc["relay_index"];
         String action = doc["action"];
         if (action == "remove_reminder") {
-          String startTime = doc["start_time"];
+          std::string startTime = doc["start_time"];
 
           removeReminder(relayIndex, startTime, [this, doc, topic, deviceId, callback]() {
             String messageString = this->getStateMessage(deviceId, "switchon");
@@ -433,6 +460,7 @@ class RelayTimer {
           int longlast = doc["longlast"];
           setSwitchOnLast(relayIndex, longlast);
           String messageString = getStateMessage(deviceId, "switchon");
+          // using for trigger service
           JsonArray relayIndexes = doc["relay_indexes"].as<JsonArray>();
           for (int index : relayIndexes) {
             setSwitchOnLast(index, longlast);
@@ -467,7 +495,7 @@ class RelayTimer {
         }
 
         if (doc.containsKey("reminder")) {
-          String startTime = doc["reminder"]["start_time"];
+          std::string startTime = doc["reminder"]["start_time"];
           int duration = doc["reminder"]["duration"];
           String repeatType = doc["reminder"]["repeat_type"];
           bool isRemindersActive = doc["is_reminders_active"];

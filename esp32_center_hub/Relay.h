@@ -5,7 +5,7 @@
 
 class Relay {
   private:
-    using callbackFunc = std::function<void(String, uint8_t)>;
+    using callbackFunc = std::function<void(uint8_t)>;
     bool isSetOnLastingActive = false;
     unsigned long startAttempedTime = 0;
     uint8_t pin;
