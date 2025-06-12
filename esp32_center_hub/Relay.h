@@ -15,7 +15,6 @@ class Relay {
     void loop(callbackFunc func);
     void handleMessage(char *topic, String message);
     void setOn(bool isOn);
-    callbackFunc cb1;
     void setLonglast(int seconds);
     void switchOn();
     uint8_t value = RELAY_ON;
