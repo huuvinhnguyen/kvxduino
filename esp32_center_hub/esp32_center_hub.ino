@@ -17,11 +17,8 @@
 #include "Esp32Server.h"
 #include "app.h"
 #include "MQTTMessageHandler.h"
-#include <ElegantOTA.h>
 #include <Ticker.h>
 
-
-WebServer server(80);
 
 #define LED_BUILTIN 8
 
@@ -38,6 +35,7 @@ RelayTimer relayTimer;
 Pir pir;
 MQTTMessageHandler mqttMessageHandler;
 Ticker jobTicker;
+
 
 
 void setup() {
@@ -291,6 +289,7 @@ void syncServerData() {
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);
+  delay(100);
 
   String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
   App::setUpdateUrl(updateUrl);

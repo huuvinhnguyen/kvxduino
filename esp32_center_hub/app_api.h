@@ -7,7 +7,6 @@
 #endif
 
 #define TIMEOUT_MS 5000  // Thời gian chờ tối đa 5 giây
-#include <esp_system.h>
 
 
 

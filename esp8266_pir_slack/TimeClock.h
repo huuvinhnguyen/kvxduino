@@ -191,7 +191,7 @@ class TimeClock {
 
       int index = 0;
       for (auto& relay : relays) {
-        relay.loop([this, index](String state, uint8_t) {
+        relay.loop([this, index](uint8_t value) {
         });
         index++;
       }

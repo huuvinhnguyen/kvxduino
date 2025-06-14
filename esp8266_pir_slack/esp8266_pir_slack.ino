@@ -14,7 +14,7 @@
 #include "TimeClock.h"
 #include "Esp8266Server.h"
 #include "MQTTMessageHandler.h"
-#include <ElegantOTA.h>
+#include <Ticker.h>
 
 
 ESP8266WebServer server(80);
@@ -28,6 +28,7 @@ MQTTHandler mqttHandler;
 MQTTMessageHandler mqttMessageHandler;
 TimeClock timeClock;
 Esp8266Server espServer;
+Ticker jobTicker;
 
 uint8_t ledPin = 17;
 
@@ -39,8 +40,8 @@ void setup() {
   //  pinMode(pinPir2, INPUT);
 
   setupTimeRelay();
-  server.begin();
-  ElegantOTA.begin(&server);
+  
+
 }
 
 void setupTimeRelay() {
@@ -66,27 +67,40 @@ void setupTimeClock() {
 
 void loop() {
   loopTimeRelay();
-  server.handleClient();
-  ElegantOTA.loop();
-
-  delay(1000);
+  delay(500);
+  Serial.print("Free Heap: ");
+  Serial.println(ESP.getFreeHeap());
 
 }
 
 void loopTimeRelay() {
   wifiHandler.loopConnectWiFi();
   mqttHandler.loopConnectMQTT();
-  relayTimer.loop([](String state, int index, uint8_t value) {
-    AppApi::sendSlackMessage(state, index);
-    Serial.println("switchRelayOnswitchRelayOn");
-    int buildVersion = App::buildVersion;
-    String appVersion = App::appVersion;
-    AppApi::updateLastSeen(buildVersion, appVersion);
+  //  connector.loopConnectBLE();
+  relayTimer.loop([mqttHandler](int index, uint8_t value) {
+    Serial.println("relayTimer.loop state, index");
+
+    String deviceId = App::getDeviceId();
+    String switchOnTopic = deviceId + "/switchon/relay";
+
+    // 1. Tạo JSON document
+    StaticJsonDocument<128> doc;
+
+    // 2. Gán giá trị
+    doc["value"] = (bool)value;
+    doc["index"] = index;
+
+    // 3. Chuyển thành chuỗi JSON
+    String payload;
+    serializeJson(doc, payload);
+
+    // 4. Gửi MQTT
+    mqttHandler.publish(switchOnTopic.c_str(), payload.c_str(), false);
   });
+  //  pir.loopPir();
 }
 
 void loopTimeClock() {
-  espServer.loop();
 
   timeClock.loop([](Time t) {
     espServer.timing(t.yr, t.mon, t.date, t.hr, t.min, t.sec);
@@ -121,23 +135,13 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
-  String deviceId = App::getDeviceId();
-  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
-    String deviceInfo = AppApi::getDeviceInfo(deviceId);
-    relayTimer.updateDeviceInfo(deviceInfo);
+  mqttMessageHandler.handle(topic, payload, length, [](StaticJsonDocument<500> doc, char* topic, String message) {
 
+    String deviceId = App::getDeviceId();
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
-      Serial.println("deviceInfo: ");
-      Serial.println(deviceInfo);
-
-      int buildVersion = App::buildVersion;
-      String appVersion = App::appVersion;
-      AppApi::updateLastSeen(buildVersion, appVersion);
-
-      String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
-      App::setUpdateUrl(updateUrl);
+      syncServerData();
     }
 
     String updateTopic = deviceId + "/update_version";
@@ -153,13 +157,33 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       Serial.println("resetting wifi");
       wifiHandler.resetWifi();
     }
+
   });
+
+  String deviceId = App::getDeviceId();
 
   relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
+
+    if (strcmp("timeout", message.c_str()) == 0) {
+      String deviceInfo = AppApi::getDeviceInfo(deviceId);
+      Serial.println("deviceInfo: ");
+      Serial.println(deviceInfo);
+
+      DynamicJsonDocument jsonDoc(500);
+      DeserializationError error = deserializeJson(jsonDoc, deviceInfo);
+      if (error) {
+        Serial.print("Failed to parse JSON: ");
+        Serial.println(error.c_str());
+      }
+
+      relayTimer.updateServerTime(jsonDoc["server_time"].as<String>());
+
+    }
+
     String pingTopic = deviceId + "/ping";
     if (strcmp(topic, pingTopic.c_str()) == 0) {
-      //      App::sendDeviceMessage(message);
+      //      AppApi::sendDeviceMessage(message);
     }
 
     String switchOnTopic = deviceId + "/switchon";
@@ -167,14 +191,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
       String action = doc["action"];
       if (action == "remove_reminder") {
-        //        App::sendDeviceMessage(message);
-      }
-
-      if (doc.containsKey("longlast") ||
-          doc.containsKey("switch_value") ||
-          doc.containsKey("is_reminders_active")) {
-        //        App::sendDeviceMessage(message);
-        AppApi::sendSlackMessage();
+        //        AppApi::sendDeviceMessage(message);
       }
 
       if (doc.containsKey("reminder")) {
@@ -187,11 +204,27 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 void handleMQTTDidFinishConnectCallback() {
 
   Serial.println("handleMQTTDidFinishCallback");
+  syncServerData();
+
+  
+  String resetReason = App::getResetReasonString();
   String deviceId = App::getDeviceId();
 
+  StaticJsonDocument<128> doc;
+  doc["reset_reason"] = resetReason;
+
+  //Chuyển thành chuỗi JSON
+  String payload;
+  serializeJson(doc, payload);
+  mqttHandler.publish(deviceId.c_str(), payload.c_str(), false);
+}
+
+void syncServerData() {
+  String deviceId = App::getDeviceId();
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);
+  delay(100);
 
   String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
   App::setUpdateUrl(updateUrl);

@@ -11,7 +11,6 @@ void Relay::setup(uint8_t relayPin) {
 
 
 void Relay::loop(callbackFunc func) {
-  cb1 = func;
 
   unsigned long now = millis();  // Đảm bảo sử dụng unsigned long để tránh overflow
 
@@ -21,7 +20,7 @@ void Relay::loop(callbackFunc func) {
       startAttempedTime = now;
       setOn(true);  // Bật relay ngay lập tức
       Serial.println("Relay bật lần đầu.");
-      cb1("relay_on", value);  // Gửi callback thông báo relay đã tắt
+      func(true);  // Gửi callback thông báo relay đã tắt
 
     }
 
@@ -31,7 +30,7 @@ void Relay::loop(callbackFunc func) {
       startAttempedTime = 0;  // Reset thời gian
       isSetOnLastingActive = false;
       Serial.println("Relay tắt sau thời gian đã định.");
-      cb1("relay_off", value);  // Gửi callback thông báo relay đã tắt
+      func(false);  // Gửi callback thông báo relay đã tắt
     }
   }
 }

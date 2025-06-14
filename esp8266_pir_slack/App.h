@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #elif defined(ESP8266)
 #include <EEPROM.h>
+#include <user_interface.h>
 #define EEPROM_SIZE 512
 const int OFFLINE_FLAG_ADDR = 0;
 const int UPDATE_URL_ADDR = 10;
@@ -22,6 +23,7 @@ class App {
     static String getUpdateUrl();
     static void setUpdateUrl(const String& url);
     static const char* const topicActions[];
+    static String getResetReasonString();
 
   private:
     static uint32_t getChipId();
@@ -102,6 +104,45 @@ uint32_t App::getChipId() {
 #error "Unsupported platform. This code supports only ESP32 and ESP8266."
 #endif
 }
+
+String App::getResetReasonString() {
+#if defined(ESP32)
+
+  esp_reset_reason_t reason = esp_reset_reason();
+
+  switch (reason) {
+    case ESP_RST_POWERON:    return "POWER_ON";
+    case ESP_RST_EXT:        return "EXTERNAL_RESET";
+    case ESP_RST_SW:         return "SOFTWARE_RESET";
+    case ESP_RST_PANIC:      return "PANIC_RESET";
+    case ESP_RST_INT_WDT:    return "INTERRUPT_WATCHDOG";
+    case ESP_RST_TASK_WDT:   return "TASK_WATCHDOG";
+    case ESP_RST_BROWNOUT:   return "BROWNOUT";
+    case ESP_RST_SDIO:       return "SDIO_RESET";
+    case ESP_RST_DEEPSLEEP:  return "DEEP_SLEEP";
+    case ESP_RST_UNKNOWN:    return "UNKNOWN";
+    default:                 return "UNSPECIFIED";
+  }
+
+#elif defined(ESP8266)
+  rst_info *resetInfo = ESP.getResetInfoPtr();
+
+  switch (resetInfo->reason) {
+    case REASON_DEFAULT_RST:      return "POWER_ON";
+    case REASON_WDT_RST:          return "HARDWARE_WATCHDOG";
+    case REASON_EXCEPTION_RST:    return "EXCEPTION";
+    case REASON_SOFT_WDT_RST:     return "SOFT_WATCHDOG";
+    case REASON_SOFT_RESTART:     return "SOFTWARE_RESTART";
+    case REASON_DEEP_SLEEP_AWAKE: return "DEEP_SLEEP_AWAKE";
+    case REASON_EXT_SYS_RST:      return "EXTERNAL_RESET";
+    default:                      return "UNKNOWN";
+  }
+
+#else
+  return "UNSUPPORTED_PLATFORM";
+#endif
+}
+
 
 
 String App::updateUrl = "";

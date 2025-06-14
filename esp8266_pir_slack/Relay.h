@@ -5,7 +5,7 @@
 
 class Relay {
   private:
-    using callbackFunc = std::function<void(String, uint8_t)>;
+    using callbackFunc = std::function<void(uint8_t)>;
     bool isSetOnLastingActive = false;
     unsigned long startAttempedTime = 0;
     uint8_t pin;
@@ -15,7 +15,6 @@ class Relay {
     void loop(callbackFunc func);
     void handleMessage(char *topic, String message);
     void setOn(bool isOn);
-    callbackFunc cb1;
     void setLonglast(int seconds);
     void switchOn();
     uint8_t value = RELAY_OFF;
