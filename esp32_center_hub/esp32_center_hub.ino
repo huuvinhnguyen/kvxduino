@@ -17,17 +17,15 @@
 #include "Esp32Server.h"
 #include "app.h"
 #include "MQTTMessageHandler.h"
-#include <ElegantOTA.h>
+#include <Ticker.h>
 
-
-WebServer server(80);
 
 #define LED_BUILTIN 8
 
 int countDevice = 0;
 
 // Global objects
-BLEConnector connector;
+//BLEConnector connector;
 MQTTHandler mqttHandler;
 WiFiHandler wifiHandler;
 
@@ -36,6 +34,8 @@ Esp32Server espServer;
 RelayTimer relayTimer;
 Pir pir;
 MQTTMessageHandler mqttMessageHandler;
+Ticker jobTicker;
+
 
 
 void setup() {
@@ -45,16 +45,20 @@ void setup() {
 
   //  setupTimeClock();
   setupTimeRelay();
-  server.begin();
-  ElegantOTA.begin(&server);
+  //  server.begin();
+  //  ElegantOTA.begin(&server);
   Serial.println("setup");
+  //  jobTicker.attach(20, updateLastSeen);
+  esp_log_level_set("*", ESP_LOG_VERBOSE);
+
+
 }
 
 void setupTimeRelay() {
 
   wifiHandler.setupWiFi();
-  connector.setupBLE();
-  connector.registerNotifyCallback(handleBLENotify);
+  //  connector.setupBLE();
+  //  connector.registerNotifyCallback(handleBLENotify);
   relayTimer.setup();
   mqttHandler.setup(App::getDeviceId(), App::mqttHost, App::mqttPort);
   mqttHandler.setTopicActions(App::topicActions, sizeof(App::topicActions) / sizeof(App::topicActions[0]));
@@ -84,22 +88,38 @@ void loop() {
 
   Serial.println("loop");
   loopTimeRelay();
-  server.handleClient();
-  ElegantOTA.loop();
-  delay(1000);
+  //  server.handleClient();
+  //  ElegantOTA.loop();
+  delay(100);
+
+  Serial.print("Free Heap: ");
+  Serial.println(ESP.getFreeHeap());
 
 }
 
 void loopTimeRelay() {
   wifiHandler.loopConnectWiFi();
   mqttHandler.loopConnectMQTT();
-  connector.loopConnectBLE();
-  relayTimer.loop([](String state, int index, uint8_t value) {
-    AppApi::sendSlackMessage(state, index);
-    int buildVersion = App::buildVersion;
-    String appVersion = App::appVersion;
-    AppApi::updateLastSeen(buildVersion, appVersion);
+  //  connector.loopConnectBLE();
+  relayTimer.loop([mqttHandler](int index, uint8_t value) {
+    Serial.println("relayTimer.loop state, index");
 
+    String deviceId = App::getDeviceId();
+    String switchOnTopic = deviceId + "/switchon/relay";
+
+    // 1. Tạo JSON document
+    StaticJsonDocument<128> doc;
+
+    // 2. Gán giá trị
+    doc["value"] = (bool)value;
+    doc["index"] = index;
+
+    // 3. Chuyển thành chuỗi JSON
+    String payload;
+    serializeJson(doc, payload);
+
+    // 4. Gửi MQTT
+    mqttHandler.publish(switchOnTopic.c_str(), payload.c_str(), false);
   });
   //  pir.loopPir();
 }
@@ -152,29 +172,13 @@ void handleBLENotify(String jsonString) {
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
-  String deviceId = App::getDeviceId();
-  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
+
+  mqttMessageHandler.handle(topic, payload, length, [mqttMessageHandler](StaticJsonDocument<500> doc, char* topic, String message) {
 
     String deviceId = App::getDeviceId();
-
-    String deviceInfo = AppApi::getDeviceInfo(deviceId);
-    relayTimer.updateDeviceInfo(deviceInfo);
-
-
     String refreshTopic = deviceId + "/refresh";
     if (strcmp(topic, refreshTopic.c_str()) == 0) {
-//      String deviceInfo = AppApi::getDeviceInfo(deviceId);
-      Serial.println("deviceInfo: ");
-      Serial.println(deviceInfo);
-
-      int buildVersion = App::buildVersion;
-      String appVersion = App::appVersion;
-      AppApi::updateLastSeen(buildVersion, appVersion);
-
-//      relayTimer.updateDeviceInfo(deviceInfo);
-
-      String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
-      App::setUpdateUrl(updateUrl);
+      syncServerData();
     }
 
     String updateTopic = deviceId + "/update_version";
@@ -193,14 +197,24 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   });
 
+  String deviceId = App::getDeviceId();
+
   relayTimer.handleMQTTCallback(deviceId, topic, payload, length, [relayTimer, deviceId](StaticJsonDocument<500> doc, char* topic, String message) {
 
-    String refreshTopic = deviceId + "/refresh";
-    if (strcmp(topic, refreshTopic.c_str()) == 0) {
+
+    if (strcmp("timeout", message.c_str()) == 0) {
       String deviceInfo = AppApi::getDeviceInfo(deviceId);
       Serial.println("deviceInfo: ");
       Serial.println(deviceInfo);
-      relayTimer.updateDeviceInfo(deviceInfo);
+
+      DynamicJsonDocument jsonDoc(500);
+      DeserializationError error = deserializeJson(jsonDoc, deviceInfo);
+      if (error) {
+        Serial.print("Failed to parse JSON: ");
+        Serial.println(error.c_str());
+      }
+
+      relayTimer.updateServerTime(jsonDoc["server_time"].as<String>());
 
     }
 
@@ -215,13 +229,6 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
       String action = doc["action"];
       if (action == "remove_reminder") {
         //        AppApi::sendDeviceMessage(message);
-      }
-
-      if (doc.containsKey("longlast") ||
-          doc.containsKey("switch_value") ||
-          doc.containsKey("is_reminders_active")) {
-        //        AppApi::sendDeviceMessage(message);
-        AppApi::sendSlackMessage();
       }
 
       if (doc.containsKey("reminder")) {
@@ -259,14 +266,30 @@ void handleSetRemindersActiveCallback(int relayIndex, bool isActive) {
   timeClock.setRemindersActive(relayIndex, isActive);
 }
 
-
 void handleMQTTDidFinishConnectCallback() {
 
   Serial.println("handleMQTTDidFinishCallback");
+  syncServerData();
+
+  
+  String resetReason = App::getResetReasonString();
+  String deviceId = App::getDeviceId();
+
+  StaticJsonDocument<128> doc;
+  doc["reset_reason"] = resetReason;
+
+  //Chuyển thành chuỗi JSON
+  String payload;
+  serializeJson(doc, payload);
+  mqttHandler.publish(deviceId.c_str(), payload.c_str(), false);
+}
+
+void syncServerData() {
   String deviceId = App::getDeviceId();
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
 
   relayTimer.updateDeviceInfo(deviceInfo);
+  delay(100);
 
   String updateUrl = mqttMessageHandler.getUpdateUrl(deviceInfo);
   App::setUpdateUrl(updateUrl);

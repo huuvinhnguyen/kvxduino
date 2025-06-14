@@ -8,40 +8,6 @@ using MQTTCallback = void(*)(char* topic, byte* payload, unsigned int length);
 using MQTTDidFinishConnectCallback = void(*)(void);
 
 
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 7 * 3600;
-const int   daylightOffset_sec = 0 ;
-
-time_t now;
-time_t nowish = 1510592825;
-
-void NTPConnect(void) {
-  Serial.print("Setting time using SNTP");
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-  unsigned long startMillis = millis(); // Record the start time
-  const unsigned long timeout = 10000;  // 10 seconds in milliseconds
-
-  now = time(nullptr);
-  while (now < nowish) {
-    if (millis() - startMillis >= timeout) {
-      Serial.println("Failed to set time. Restarting...");
-      ESP.restart(); // Restart the ESP8266
-      return; // Exit the function after restart command
-    }
-    delay(500);
-    Serial.print(".");
-    now = time(nullptr);
-  }
-
-  Serial.println("done!");
-  struct tm timeinfo;
-  gmtime_r(&now, &timeinfo);
-  Serial.print("Current time: ");
-  Serial.print(asctime(&timeinfo));
-}
-
-
 class MQTTHandler {
 
   private:
@@ -156,7 +122,6 @@ class MQTTHandler {
         return;
       }
 
-      NTPConnect();
 
       //      net.setTrustAnchors(&cert);
       //      net.setClientRSACert(&client_crt, &key);
@@ -183,6 +148,8 @@ class MQTTHandler {
         for (int i = 0; i < topicActionsCount; ++i) {
           String topic = deviceId + "/" + topicActions[i];
           Serial.println("topic: " + topic);
+          client.publish(topic.c_str(), "", true); // Xóa retained
+          delay(200); // Chờ chút để broker xử lý
           client.subscribe(topic.c_str(), 1);
         }
 
