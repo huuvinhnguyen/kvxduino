@@ -18,9 +18,9 @@ class RelayTimer {
     };
 
   private:
-    const char* ntpServer = "pool.ntp.org";
-    const long  gmtOffset_sec = 7 * 3600;
-    const int   daylightOffset_sec = 0 ;
+//    const char* ntpServer = "pool.ntp.org";
+//    const long  gmtOffset_sec = 7 * 3600;
+//    const int   daylightOffset_sec = 0 ;
 
     std::vector<Reminder> reminders;
     std::vector<Relay> relays;
@@ -122,12 +122,12 @@ class RelayTimer {
     void setup() {
 
       Relay relay1;
-      relay1.setup(0); // Den truoc san
+      relay1.setup(4); // Den truoc san
       relays.push_back(relay1);
-
-      Relay relay2;
-      relay2.setup(2); // Led pin
-      relays.push_back(relay2);
+//
+//      Relay relay2;
+//      relay2.setup(2); // Led pin
+//      relays.push_back(relay2);
 
 
 
@@ -135,12 +135,12 @@ class RelayTimer {
       //      relay3.setup(D6);
       //      relays.push_back(relay3);
       //
-      //      Relay relay4;
-      //      relay4.setup(D7);
-      //
-      //      relays.push_back(relay4);
+//            Relay relay4;
+//            relay4.setup(D3);
+//      
+//            relays.push_back(relay4);
 
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+//      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
     }
 
@@ -311,6 +311,7 @@ class RelayTimer {
 
       JsonArray relaysArray = jsonDoc["device_info"]["relays"].as<JsonArray>();
       updateRelays(relaysArray);
+      updateServerTime(jsonDoc["server_time"].as<String>());
 
     }
 

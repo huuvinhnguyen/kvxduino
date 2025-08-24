@@ -212,6 +212,7 @@ void handleMQTTDidFinishConnectCallback() {
 
   StaticJsonDocument<128> doc;
   doc["reset_reason"] = resetReason;
+  doc["device_id"] = deviceId;
 
   //Chuyển thành chuỗi JSON
   String payload;
