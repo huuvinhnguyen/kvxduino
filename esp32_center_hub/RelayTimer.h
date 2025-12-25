@@ -318,12 +318,13 @@ class RelayTimer {
       DynamicJsonDocument jsonDoc(500);
       DeserializationError error = deserializeJson(jsonDoc, deviceInfo);
       if (error) {
-        Serial.print("Failed to parse JSON: ");
+        Serial.print("Failed to parse JSON 5: ");
         Serial.println(error.c_str());
       }
 
       JsonArray relaysArray = jsonDoc["device_info"]["relays"].as<JsonArray>();
       updateRelays(relaysArray);
+      updateServerTime(jsonDoc["server_time"].as<String>());
 
     }
 
@@ -402,7 +403,7 @@ class RelayTimer {
 
       // Kiểm tra lỗi parse
       if (error) {
-        Serial.print("Failed to parse JSON: ");
+        Serial.print("Failed to parse JSON 6: ");
         Serial.println(error.c_str());
         return;
       }

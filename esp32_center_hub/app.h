@@ -124,7 +124,7 @@ String App::getResetReasonString() {
 String App::updateUrl = "";
 int App::buildVersion = 0;
 String App::appVersion = "1.0.0";
-String App::mqttHost = "103.9.77.155";
+String App::mqttHost = "khuonvien.vn";
 int App::mqttPort = 1883;
 const char* const App::topicActions[] = {
   "switch",

@@ -34,7 +34,8 @@ String MQTTMessageHandler::getUpdateUrl(String deviceInfo) {
   DynamicJsonDocument jsonDoc(500);
   DeserializationError error = deserializeJson(jsonDoc, deviceInfo);
   if (error) {
-    Serial.print("Failed to parse JSON: ");
+    Serial.print("Device Info: " + deviceInfo);
+    Serial.print("Failed to parse JSON 2: ");
     Serial.println(error.c_str());
   }
 
@@ -59,7 +60,7 @@ void MQTTMessageHandler::handle(char* topic, byte* payload, unsigned int length,
 
   // Kiểm tra lỗi parse
   if (error) {
-    Serial.print("Failed to parse JSON: ");
+    Serial.print("Failed to parse JSON 1: ");
     Serial.println(error.c_str());
     return;
   }
@@ -86,6 +87,7 @@ void MQTTMessageHandler::handle(char* topic, byte* payload, unsigned int length,
 void MQTTMessageHandler::updateServerTime(String serverTime) {
   // Parse thời gian dạng ISO 8601 (UTC): "2025-05-08T00:47:32"
   struct tm tm;
+  Serial.println("server time: " + serverTime);
   if (!strptime(serverTime.c_str(), "%Y-%m-%dT%H:%M:%S", &tm)) {
     Serial.println("Failed to parse server time");
     return;

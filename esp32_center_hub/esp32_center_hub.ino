@@ -1,4 +1,4 @@
-
+    
 #include <ArduinoJson.h>
 #include <BLEConnector.h>
 #include <MQTTHandler.h>
@@ -90,7 +90,7 @@ void loop() {
   loopTimeRelay();
   //  server.handleClient();
   //  ElegantOTA.loop();
-  delay(100);
+  delay(500);
 
   Serial.print("Free Heap: ");
   Serial.println(ESP.getFreeHeap());
@@ -277,6 +277,7 @@ void handleMQTTDidFinishConnectCallback() {
 
   StaticJsonDocument<128> doc;
   doc["reset_reason"] = resetReason;
+  doc["device_id"] = deviceId;
 
   //Chuyển thành chuỗi JSON
   String payload;
@@ -287,7 +288,7 @@ void handleMQTTDidFinishConnectCallback() {
 void syncServerData() {
   String deviceId = App::getDeviceId();
   String deviceInfo = AppApi::getDeviceInfo(deviceId);
-
+  Serial.println("updateDeviceInfo: " + deviceInfo);
   relayTimer.updateDeviceInfo(deviceInfo);
   delay(100);
 
