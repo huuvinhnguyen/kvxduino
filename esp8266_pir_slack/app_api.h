@@ -12,7 +12,7 @@
 class AppApi {
 
   public:
-    static constexpr const char* serverUrl = "http://103.9.77.155";
+    static constexpr const char* serverUrl = "https://khuonvien.vn";
     static String deviceId;
 
     static String getDeviceId() {
@@ -32,8 +32,8 @@ class AppApi {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
-        WiFiClient client;
-
+        WiFiClientSecure client;
+        client.setInsecure();   // bỏ verify SSL cho đơn giản
         http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
@@ -75,9 +75,8 @@ class AppApi {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
-        WiFiClient client;
-
-
+        WiFiClientSecure client;
+        client.setInsecure();   // bỏ verify SSL cho đơn giản
         http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
@@ -120,8 +119,8 @@ class AppApi {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
-        WiFiClient client;
-
+        WiFiClientSecure client;
+        client.setInsecure();   // bỏ verify SSL cho đơn giản
         http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
@@ -148,8 +147,8 @@ class AppApi {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
-        WiFiClient client;
-
+        WiFiClientSecure client;
+        client.setInsecure();   // bỏ verify SSL cho đơn giản
         http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
@@ -217,8 +216,8 @@ class AppApi {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
-        WiFiClient client;
-
+        WiFiClientSecure client;
+        client.setInsecure();   // bỏ verify SSL cho đơn giản
         http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
@@ -251,9 +250,8 @@ class AppApi {
 
         HTTPClient http;
 
-        WiFiClient client;
-
-
+        WiFiClientSecure client;
+        client.setInsecure();   // bỏ verify SSL cho đơn giản
         http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 
@@ -388,8 +386,8 @@ class AppApi {
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
-        WiFiClient client;
-
+        WiFiClientSecure client;
+        client.setInsecure();   // bỏ verify SSL cho đơn giản
         http.begin(client, url);
         http.addHeader("Content-Type", "application/json");
 

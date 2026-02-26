@@ -83,24 +83,37 @@ class MQTTHandler {
     bool isFirstConnection = true;
     void loopReconnectMQTT() {
 
-      Serial.println("reconnecting Mqtt");
-
+      static uint8_t retryCount = 0;   // đếm số lần retry
       long now = millis();
+
       if (isFirstConnection || (now - lastReconnectMQTTAttempt > 15000)) {
         isFirstConnection = false;
-        Serial.println("inside reconnecting Mqtt");
-
-
         lastReconnectMQTTAttempt = now;
-        // Attempt to connect
-        delay(1000);
+
+        Serial.print("🔄 Reconnecting MQTT... attempt ");
+        Serial.println(retryCount + 1);
+
         connectMQTT();
 
         if (client.connected()) {
+          Serial.println("✅ MQTT connected");
+          retryCount = 0;              // reset khi thành công
           lastReconnectMQTTAttempt = 0;
+        } else {
+          retryCount++;
+
+          Serial.print("❌ MQTT failed, retry count = ");
+          Serial.println(retryCount);
+
+          if (retryCount >= 4) {
+            Serial.println("🚨 MQTT failed 4 times → ESP restart");
+            delay(1000);
+            ESP.restart();
+          }
         }
       }
     }
+
 
     uint32_t getChipId() {
 #if defined(ESP32)
