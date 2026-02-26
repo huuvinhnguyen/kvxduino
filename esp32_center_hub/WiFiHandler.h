@@ -27,7 +27,20 @@ class WiFiHandler {
       //and goes into a blocking loop awaiting configuration
       wifiManager.setConfigPortalTimeout(180);
 
-      if (!wifiManager.autoConnect("AutoConnectAP")) {
+      wifiManager.setCustomHeadElement(R"====(
+              <style>
+                h2, label, button { font-family: sans-serif; }
+                label[for="s"]::after { content: " (Tên Wi-Fi)"; color: gray; font-size: 0.9em; }
+                label[for="p"]::after { content: " (Mật khẩu Wi-Fi)"; color: gray; font-size: 0.9em; }
+                button[type="submit"]::after { content: " (Lưu)"; font-size: 0.9em; }
+              </style>
+              <div style='padding:10px; background:#f9f9f9; border:1px solid #ccc; margin-bottom:10px;'>
+                <strong>Chào bạn!</strong><br />
+                Vui lòng nhập <strong>tên Wi-Fi</strong> và <strong>mật khẩu</strong> của bạn để kết nối thiết bị.
+              </div>
+            )====");
+
+      if (!wifiManager.autoConnect("KhuonVien")) {
         Serial.println("failed to connect, we should reset as see if it connects");
         delay(3000);
         ESP.restart();
