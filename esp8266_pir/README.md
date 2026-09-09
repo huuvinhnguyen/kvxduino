@@ -16,6 +16,7 @@ Firmware cho ESP8266 đọc cảm biến PIR và gọi API trigger khi phát hi�
   - PubSubClient
   - ArduinoJson
   - WiFiManager
+  - [kvxshared](https://github.com/huuvinhnguyen/kvxshared)
 
 ## Cài đặt Arduino CLI
 
@@ -47,6 +48,22 @@ arduino-cli lib install "PubSubClient"
 arduino-cli lib install "ArduinoJson"
 arduino-cli lib install "WiFiManager"
 ```
+
+Cài thủ công thư viện `kvxshared` từ GitHub vào thư mục thư viện Arduino:
+
+```bash
+cd "$(arduino-cli config get directories.user)/libraries"
+git clone https://github.com/huuvinhnguyen/kvxshared.git
+```
+
+Nếu thư viện đã được clone trước đó, cập nhật bằng:
+
+```bash
+cd "$(arduino-cli config get directories.user)/libraries/kvxshared"
+git pull
+```
+
+Sau khi cài đặt, khởi động lại Arduino IDE nếu đang mở.
 
 ## Build firmware
 
