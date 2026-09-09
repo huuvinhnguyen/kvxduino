@@ -133,6 +133,7 @@ Có thể thay đổi pin bằng cách truyền pin khác vào `setup()`.
 
 ## Dependencies
 
+- [kvxshared](https://github.com/huuvinhnguyen/kvxshared)
 - ESP8266WiFi
 - ArduinoJson
 - PubSubClient (trong MQTTHandler)
