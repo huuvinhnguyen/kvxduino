@@ -15,7 +15,7 @@
 
 
 bool previousPirState = LOW;
-const uint8_t pinPir2 = D7;
+const uint8_t pinPir2 = 13;
 int val;
 
 WiFiHandler wifiHandler;
@@ -28,9 +28,13 @@ uint8_t ledPin = 17;
 void setup() {
 
   Serial.begin(115200);
+  String deviceId = App::getDeviceId();
+  Serial.println("deviceId: ");
+  Serial.println(deviceId);
+  
   App::setup();
-  AppApi::setup(App::getDeviceId());
-    pinMode(pinPir2, INPUT_PULLUP);
+  AppApi::setup(deviceId);
+  pinMode(pinPir2, INPUT_PULLUP);
 
   setupTimeRelay();
 
@@ -50,22 +54,22 @@ void setupTimeRelay() {
 
 void loop() {
 
-   bool pirState = digitalRead(pinPir2) == HIGH;
+  bool pirState = digitalRead(pinPir2) == HIGH;
   if (pirState && !previousPirState) {
     Serial.println("PIR detected, sending trigger");
     AppApi::sendTrigger(App::getDeviceId());
   }
   previousPirState = pirState;
   delay(500);
-//  Serial.print("Free Heap: ");
+  //  Serial.print("Free Heap: ");
   Serial.println(ESP.getFreeHeap());
 
 }
 
 void loopTimeRelay() {
   wifiHandler.loopConnectWiFi();
-  mqttHandler.loopConnectMQTT();  
- 
+  mqttHandler.loopConnectMQTT();
+
 }
 
 void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
@@ -95,7 +99,7 @@ void handleMQTTCallback(char* topic, byte* payload, unsigned int length) {
 
   });
 
-  
+
 }
 
 void handleMQTTDidFinishConnectCallback() {

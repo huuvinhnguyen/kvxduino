@@ -19,11 +19,14 @@ MQTTMessageHandler mqttMessageHandler;
 
 void setup() {
   Serial.begin(115200);
+  String deviceId = App::getDeviceId();
+  Serial.println("deviceId: ");
+  Serial.println(deviceId);
 
   App::setup();
-  AppApi::setup(App::getDeviceId());
-
+  AppApi::setup(deviceId);
   setupTimeRelay();
+  
 }
 
 
